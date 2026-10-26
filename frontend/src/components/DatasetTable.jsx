@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh, onViewProfile, onViewAudit }) {
+export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh, onViewProfile, onViewAudit, onCompare }) {
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDelete = async (dataset) => {
@@ -102,6 +102,13 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
                         onClick={() => onPreview(ds)}
                       >
                         Preview
+                      </button>
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                        onClick={() => onCompare && onCompare(ds)}
+                      >
+                        Compare
                       </button>
                       <button
                         className="btn btn-outline"

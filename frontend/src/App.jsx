@@ -5,6 +5,7 @@ import DatasetTable from './components/DatasetTable';
 import PreviewModal from './components/PreviewModal';
 import ProfileView from './components/ProfileView';
 import AuditDashboard from './components/AuditDashboard';
+import CompareView from './components/CompareView';
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -78,6 +79,11 @@ export default function App() {
     setActiveView('profile');
   };
 
+  const handleViewCompare = (dataset) => {
+    setSelectedDataset(dataset);
+    setActiveView('compare');
+  };
+
   const handleBackToInventory = () => {
     setSelectedDataset(null);
     setActiveView('inventory');
@@ -128,6 +134,7 @@ export default function App() {
             onBack={handleBackToInventory}
             onSwitchToProfile={() => setActiveView('profile')}
             onSwitchToPreview={() => setPreviewingDataset(selectedDataset)}
+            onSwitchToCompare={() => setActiveView('compare')}
           />
         )}
 
@@ -135,6 +142,14 @@ export default function App() {
           <ProfileView
             dataset={selectedDataset}
             onBack={handleBackToInventory}
+          />
+        )}
+
+        {activeView === 'compare' && selectedDataset && (
+          <CompareView
+            datasetId={selectedDataset.id}
+            onBackToAudit={() => setActiveView('audit')}
+            onBackToDatasets={handleBackToInventory}
           />
         )}
 
@@ -148,6 +163,7 @@ export default function App() {
               onPreview={(ds) => setPreviewingDataset(ds)}
               onViewProfile={handleViewProfile}
               onViewAudit={handleViewAudit}
+              onCompare={handleViewCompare}
               onDelete={handleDelete}
               onRefresh={fetchDatasets}
             />
@@ -163,7 +179,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        DataLens &bull; Deterministic Dataset Quality Auditor &bull; Phase 6 &amp; 7 Audit Engine &amp; Dashboard
+        DataLens &bull; Deterministic Dataset Quality Auditor &bull; Phase 9 Multi-Version Comparison &amp; Audit Engine
       </footer>
     </div>
   );

@@ -105,6 +105,13 @@ export async function getDatasetPreview(datasetId, versionId = null, limit = 20)
 }
 
 /**
+ * List all versions for a dataset
+ */
+export async function listVersions(datasetId) {
+  return apiClient(`/datasets/${datasetId}/versions`);
+}
+
+/**
  * Get statistical profile for a dataset version
  */
 export async function getDatasetProfile(datasetId, versionId = null) {
@@ -210,4 +217,26 @@ export async function listTransformations(datasetId) {
   return apiClient(`/datasets/${datasetId}/transformations`);
 }
 
+/**
+ * Compare two dataset versions
+ */
+export async function compareVersions(datasetId, v1 = null, v2 = null) {
+  let url = `/datasets/${datasetId}/compare`;
+  const params = [];
+  if (v1) params.push(`v1=${encodeURIComponent(v1)}`);
+  if (v2) params.push(`v2=${encodeURIComponent(v2)}`);
+  if (params.length > 0) {
+    url += `?${params.join('&')}`;
+  }
+  return apiClient(url);
+}
+
+/**
+ * Get comprehensive version history with audits and transformation lineage
+ */
+export async function getVersionHistory(datasetId) {
+  return apiClient(`/datasets/${datasetId}/history`);
+}
+
 export { API_BASE_URL, HEALTH_URL };
+

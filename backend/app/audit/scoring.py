@@ -81,6 +81,8 @@ def calculate_quality_score(
         "total_penalty": total_penalty,
         "scoring_method_version": SCORING_METHOD_VERSION,
         "disclaimer": SCORING_DISCLAIMER,
+        "total_missing_cells": total_missing_cells,
+        "duplicate_rows_count": duplicate_rows,
         "penalties": {
             "missingness": missing_penalty,
             "duplicates": dup_penalty,

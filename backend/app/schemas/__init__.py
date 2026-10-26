@@ -27,6 +27,14 @@ from backend.app.schemas.transformation import (
     TransformationResponse,
     TransformationListResponse,
 )
+from backend.app.schemas.comparison import (
+    ScoreComparisonResponse,
+    MetricDeltaItem,
+    FindingDiffItem,
+    FindingsDiff,
+    ColumnChanges,
+    VersionComparisonResponse,
+)
 
 __all__ = [
     "HealthResponse",

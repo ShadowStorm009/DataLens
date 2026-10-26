@@ -3,7 +3,7 @@ import { runAudit, listAudits, getAudit, getDatasetProfile } from '../api/client
 import FindingDetailDrawer from './FindingDetailDrawer';
 import CleaningPanel from './CleaningPanel';
 
-export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onSwitchToPreview }) {
+export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onSwitchToPreview, onSwitchToCompare }) {
   const [audit, setAudit] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -163,6 +163,11 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
           {onSwitchToPreview && (
             <button className="btn btn-outline" onClick={onSwitchToPreview} style={{ fontSize: '0.85rem' }}>
               Preview Rows
+            </button>
+          )}
+          {onSwitchToCompare && (
+            <button className="btn btn-outline" onClick={onSwitchToCompare} style={{ fontSize: '0.85rem' }}>
+              Compare Versions
             </button>
           )}
         </div>
