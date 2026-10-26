@@ -1,9 +1,17 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
 from backend.app.core.errors import register_error_handlers
+from backend.app.db.session import init_db
 from backend.app.api.api_v1 import api_router
 from backend.app.api.routes.health import router as health_router
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database tables on application startup
+    init_db()
+    yield
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -11,6 +19,7 @@ app = FastAPI(
     description="Deterministic dataset profiling, quality auditing, non-mutating preview, and cleaning engine.",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS

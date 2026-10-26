@@ -30,6 +30,11 @@ class TransformationError(DataLensError):
     def __init__(self, message: str = "Transformation failed", details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=status.HTTP_400_BAD_REQUEST, details=details)
 
+class StorageError(DataLensError):
+    """File storage or I/O failure (500)."""
+    def __init__(self, message: str = "Storage error occurred", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, details=details)
+
 def register_error_handlers(app: FastAPI) -> None:
     """Register custom exception handlers with the FastAPI application."""
 
