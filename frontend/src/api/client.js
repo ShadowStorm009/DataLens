@@ -45,7 +45,7 @@ export async function apiClient(endpoint, options = {}) {
     if (isJson) {
       try {
         const errData = await response.json();
-        errorDetail = errData.detail || errData.message || JSON.stringify(errData);
+        errorDetail = errData.message || errData.detail || JSON.stringify(errData);
       } catch (_) {
         // Fallback to status text
       }
@@ -61,6 +61,56 @@ export async function apiClient(endpoint, options = {}) {
     return response.json();
   }
   return response;
+}
+
+/**
+ * Upload a CSV dataset file
+ */
+export async function uploadDataset(file, name = '') {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (name && name.trim()) {
+    formData.append('name', name.trim());
+  }
+
+  return apiClient('/datasets', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+/**
+ * List stored datasets
+ */
+export async function listDatasets(skip = 0, limit = 50) {
+  return apiClient(`/datasets?skip=${skip}&limit=${limit}`);
+}
+
+/**
+ * Get dataset details
+ */
+export async function getDataset(datasetId) {
+  return apiClient(`/datasets/${datasetId}`);
+}
+
+/**
+ * Get a preview of rows for a dataset version (strictly bounded)
+ */
+export async function getDatasetPreview(datasetId, versionId = null, limit = 20) {
+  let url = `/datasets/${datasetId}/preview?limit=${limit}`;
+  if (versionId) {
+    url += `&version_id=${encodeURIComponent(versionId)}`;
+  }
+  return apiClient(url);
+}
+
+/**
+ * Delete a dataset and its versions
+ */
+export async function deleteDataset(datasetId) {
+  return apiClient(`/datasets/${datasetId}`, {
+    method: 'DELETE',
+  });
 }
 
 export { API_BASE_URL, HEALTH_URL };

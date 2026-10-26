@@ -3,7 +3,7 @@ import uuid
 import hashlib
 import pandas as pd
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Tuple, Union, Any, Optional
 from backend.app.core.config import settings
 from backend.app.core.errors import StorageError, FileValidationError
 
@@ -66,13 +66,13 @@ class StorageService:
                 target_path.unlink()
             raise StorageError(f"Failed to persist transformed DataFrame: {str(e)}")
 
-    def read_dataframe(self, storage_reference: str) -> pd.DataFrame:
+    def read_dataframe(self, storage_reference: str, dtype: Any = None, keep_default_na: bool = True) -> pd.DataFrame:
         """Read a stored CSV file into a Pandas DataFrame."""
         file_path = self._resolve_safe_path(storage_reference)
         if not file_path.exists():
             raise StorageError("Referenced dataset file does not exist on disk")
         try:
-            return pd.read_csv(file_path)
+            return pd.read_csv(file_path, dtype=dtype, keep_default_na=keep_default_na)
         except Exception as e:
             raise StorageError(f"Failed to read CSV dataset file: {str(e)}")
 

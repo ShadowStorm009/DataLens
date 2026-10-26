@@ -18,12 +18,12 @@ class ResourceNotFoundError(DataLensError):
 class FileValidationError(DataLensError):
     """Uploaded file or parameter failed validation (422)."""
     def __init__(self, message: str = "Invalid file or parameters", details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, details=details)
+        super().__init__(message, status_code=422, details=details)
 
 class FileSizeLimitError(DataLensError):
     """Uploaded file exceeds size limit (413)."""
     def __init__(self, message: str = "File size exceeds the allowed limit", details: Optional[Dict[str, Any]] = None):
-        super().__init__(message, status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, details=details)
+        super().__init__(message, status_code=413, details=details)
 
 class TransformationError(DataLensError):
     """Data cleaning transformation failed (400)."""

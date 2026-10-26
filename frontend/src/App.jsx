@@ -1,29 +1,59 @@
-import { useState, useEffect } from 'react';
-import { checkHealth, API_BASE_URL, HEALTH_URL } from './api/client';
+import { useState, useEffect, useCallback } from 'react';
+import { checkHealth, listDatasets, deleteDataset } from './api/client';
+import UploadSection from './components/UploadSection';
+import DatasetTable from './components/DatasetTable';
+import PreviewModal from './components/PreviewModal';
 
 export default function App() {
   const [health, setHealth] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [lastChecked, setLastChecked] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [datasets, setDatasets] = useState([]);
+  const [datasetsLoading, setDatasetsLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+  const [previewingDataset, setPreviewingDataset] = useState(null);
 
   const fetchHealth = async () => {
-    setLoading(true);
-    setError(null);
+    setHealthLoading(true);
     try {
       const data = await checkHealth();
       setHealth(data);
-      setLastChecked(new Date().toLocaleTimeString());
     } catch (err) {
-      setError(err.message || 'Unable to connect to DataLens backend API');
+      setHealth(null);
     } finally {
-      setLoading(false);
+      setHealthLoading(false);
     }
   };
 
+  const fetchDatasets = useCallback(async () => {
+    setDatasetsLoading(true);
+    setApiError(null);
+    try {
+      const response = await listDatasets();
+      setDatasets(response.datasets || []);
+    } catch (err) {
+      setApiError(err.message || 'Unable to connect to backend server');
+    } finally {
+      setDatasetsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchHealth();
-  }, []);
+    fetchDatasets();
+  }, [fetchDatasets]);
+
+  const handleUploadSuccess = (newDataset) => {
+    setDatasets((prev) => [newDataset, ...prev]);
+  };
+
+  const handleDelete = async (datasetId) => {
+    try {
+      await deleteDataset(datasetId);
+      setDatasets((prev) => prev.filter((d) => d.id !== datasetId));
+    } catch (err) {
+      alert(`Failed to delete dataset: ${err.message}`);
+    }
+  };
 
   return (
     <div className="app-container">
@@ -34,94 +64,47 @@ export default function App() {
             <path d="m21 21-4.3-4.3"></path>
           </svg>
           DataLens
-          <span className="brand-badge">Auditor MVP</span>
+          <span className="brand-badge">Dataset Quality Auditor</span>
         </div>
-        <div>
-          <button 
-            className="btn btn-outline" 
-            onClick={fetchHealth} 
-            disabled={loading}
-          >
-            {loading ? 'Checking...' : 'Ping Backend'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {healthLoading && <span className="badge badge-warning">Checking Backend...</span>}
+          {!healthLoading && health && <span className="badge badge-success">Backend Connected</span>}
+          {!healthLoading && !health && <span className="badge badge-danger">Backend Offline</span>}
         </div>
       </header>
 
       <main className="main-content">
-        <div className="card">
-          <h2 className="card-title">
-            Application Foundation & Connectivity
-          </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Phase 2 establishes the end-to-end communication channel between the React/Vite frontend and the FastAPI backend.
-          </p>
-
-          <div style={{ padding: '1rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <strong>Backend Status:</strong>
-              {loading && <span className="badge badge-warning">Checking...</span>}
-              {!loading && health && <span className="badge badge-success">Connected ({health.status})</span>}
-              {!loading && error && <span className="badge badge-danger">Connection Failed</span>}
+        {apiError && (
+          <div style={{ padding: '1rem', background: 'var(--danger-bg)', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <strong>Connection Error:</strong> {apiError}
             </div>
-
-            <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', color: 'var(--text-muted)' }}>
-              <div><strong>Backend Health URL:</strong> <code>{HEALTH_URL}</code></div>
-              <div><strong>API Base URL:</strong> <code>{API_BASE_URL}</code></div>
-              {lastChecked && <div><strong>Last Checked:</strong> {lastChecked}</div>}
-              {health && (
-                <div>
-                  <strong>Response Data:</strong>{' '}
-                  <code style={{ background: '#e2e8f0', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                    {JSON.stringify(health)}
-                  </code>
-                </div>
-              )}
-              {error && (
-                <div style={{ color: 'var(--danger)', marginTop: '0.5rem' }}>
-                  <strong>Error:</strong> {error}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button className="btn btn-primary" onClick={fetchHealth} disabled={loading}>
-              {loading ? 'Verifying...' : 'Re-verify Connection'}
+            <button className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }} onClick={fetchDatasets}>
+              Retry
             </button>
           </div>
-        </div>
+        )}
 
-        <div className="grid-2">
-          <div className="card">
-            <h3 className="card-title">Core Workflow Architecture</h3>
-            <ol style={{ paddingLeft: '1.25rem', color: 'var(--text-muted)', lineHeight: '1.8' }}>
-              <li><strong>Upload & Validation:</strong> Safe CSV parsing and size limits</li>
-              <li><strong>Real Profiling:</strong> Statistical summaries (numeric, categorical)</li>
-              <li><strong>Deterministic Audit:</strong> Non-LLM rule evaluation</li>
-              <li><strong>Actionable Findings:</strong> Numerical evidence and recommendations</li>
-              <li><strong>Non-Mutating Preview:</strong> Verify changes before applying</li>
-              <li><strong>Version Creation:</strong> Immutable parent history</li>
-              <li><strong>Re-Audit & Compare:</strong> Measure data quality improvements</li>
-              <li><strong>Export:</strong> Download cleaned CSV and audit report</li>
-            </ol>
-          </div>
+        <UploadSection onUploadSuccess={handleUploadSuccess} />
 
-          <div className="card">
-            <h3 className="card-title">Technical Foundations</h3>
-            <ul style={{ listStyle: 'none', color: 'var(--text-muted)', lineHeight: '1.8' }}>
-              <li><strong>Frontend:</strong> React 18, Vite, Vanilla CSS (No Tailwind)</li>
-              <li><strong>Backend:</strong> FastAPI, Uvicorn, Pydantic v2</li>
-              <li><strong>Data Engine:</strong> Pandas, NumPy</li>
-              <li><strong>Persistence:</strong> SQLite, SQLAlchemy ORM</li>
-              <li><strong>Testing:</strong> pytest, FastAPI TestClient</li>
-              <li><strong>Environment:</strong> Arch Linux isolated Python venv</li>
-            </ul>
-          </div>
-        </div>
+        <DatasetTable
+          datasets={datasets}
+          loading={datasetsLoading}
+          onPreview={(ds) => setPreviewingDataset(ds)}
+          onDelete={handleDelete}
+          onRefresh={fetchDatasets}
+        />
+
+        {previewingDataset && (
+          <PreviewModal
+            dataset={previewingDataset}
+            onClose={() => setPreviewingDataset(null)}
+          />
+        )}
       </main>
 
       <footer className="footer">
-        DataLens — Dataset Quality Auditor &copy; 2026. Phase 2 Foundation Verified.
+        DataLens &bull; Deterministic Tabular Quality Auditor &bull; Phase 4 Verified
       </footer>
     </div>
   );
