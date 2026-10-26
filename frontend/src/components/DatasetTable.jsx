@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getExportCsvUrl, downloadFileFromUrl } from '../api/client';
 
 export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh, onViewProfile, onViewAudit, onCompare }) {
   const [deletingId, setDeletingId] = useState(null);
@@ -109,6 +110,14 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
                         onClick={() => onCompare && onCompare(ds)}
                       >
                         Compare
+                      </button>
+                      <button
+                        className="btn btn-outline"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                        onClick={() => downloadFileFromUrl(getExportCsvUrl(ds.id, ds.current_version_id, false))}
+                        title="Export current CSV version"
+                      >
+                        Export CSV
                       </button>
                       <button
                         className="btn btn-outline"

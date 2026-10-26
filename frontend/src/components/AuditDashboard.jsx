@@ -1,5 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { runAudit, listAudits, getAudit, getDatasetProfile } from '../api/client';
+import {
+  runAudit,
+  listAudits,
+  getAudit,
+  getDatasetProfile,
+  getExportCsvUrl,
+  getExportReportUrl,
+  downloadFileFromUrl,
+} from '../api/client';
 import FindingDetailDrawer from './FindingDetailDrawer';
 import CleaningPanel from './CleaningPanel';
 
@@ -12,6 +19,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const [selectedFinding, setSelectedFinding] = useState(null);
   const [showCleaningPanel, setShowCleaningPanel] = useState(false);
   const [transformationSuccess, setTransformationSuccess] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Tab: 'findings' or 'columns'
   const [activeTab, setActiveTab] = useState('findings');
@@ -170,6 +178,81 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
               Compare Versions
             </button>
           )}
+
+          <div style={{ position: 'relative' }}>
+            <button
+              className="btn btn-outline"
+              onClick={() => setShowExportMenu((prev) => !prev)}
+              style={{ fontSize: '0.85rem' }}
+            >
+              Export ▾
+            </button>
+            {showExportMenu && (
+              <div
+                className="card"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: '110%',
+                  width: '260px',
+                  padding: '0.75rem',
+                  zIndex: 50,
+                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                  background: '#ffffff',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
+                  Dataset Version CSV
+                </div>
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
+                  onClick={() => {
+                    downloadFileFromUrl(getExportCsvUrl(dataset.id, dataset.current_version_id, false));
+                    setShowExportMenu(false);
+                  }}
+                >
+                  📄 Standard CSV
+                </button>
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: '0.75rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
+                  onClick={() => {
+                    downloadFileFromUrl(getExportCsvUrl(dataset.id, dataset.current_version_id, true));
+                    setShowExportMenu(false);
+                  }}
+                >
+                  🛡️ Spreadsheet-Safe CSV
+                </button>
+
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem', textTransform: 'uppercase', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
+                  Audit Report
+                </div>
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
+                  onClick={() => {
+                    downloadFileFromUrl(getExportReportUrl(dataset.id, audit?.id, 'html'));
+                    setShowExportMenu(false);
+                  }}
+                  disabled={!audit}
+                >
+                  📊 Standalone HTML Report
+                </button>
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
+                  onClick={() => {
+                    downloadFileFromUrl(getExportReportUrl(dataset.id, audit?.id, 'json'));
+                    setShowExportMenu(false);
+                  }}
+                  disabled={!audit}
+                >
+                  ⚙️ Machine JSON Report
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

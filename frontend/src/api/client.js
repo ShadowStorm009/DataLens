@@ -238,5 +238,41 @@ export async function getVersionHistory(datasetId) {
   return apiClient(`/datasets/${datasetId}/history`);
 }
 
+/**
+ * Generate CSV export download URL
+ */
+export function getExportCsvUrl(datasetId, versionId = null, spreadsheetSafe = false) {
+  let url = versionId
+    ? `${API_BASE_URL}/datasets/${datasetId}/versions/${versionId}/export`
+    : `${API_BASE_URL}/datasets/${datasetId}/export`;
+  if (spreadsheetSafe) {
+    url += '?spreadsheet_safe=true';
+  }
+  return url;
+}
+
+/**
+ * Generate Audit Report download URL
+ */
+export function getExportReportUrl(datasetId, auditId = null, format = 'html') {
+  let url = auditId
+    ? `${API_BASE_URL}/datasets/${datasetId}/audits/${auditId}/report?format=${format}`
+    : `${API_BASE_URL}/datasets/${datasetId}/report?format=${format}`;
+  return url;
+}
+
+/**
+ * Trigger browser file download from a given URL
+ */
+export function downloadFileFromUrl(url) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', '');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 export { API_BASE_URL, HEALTH_URL };
+
 

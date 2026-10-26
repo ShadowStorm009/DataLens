@@ -4,6 +4,8 @@ import {
   getVersionHistory,
   listVersions,
   runAudit,
+  getExportCsvUrl,
+  downloadFileFromUrl,
 } from '../api/client';
 
 export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets }) {
@@ -145,6 +147,15 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
             style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
           >
             {reAuditing ? 'Auditing...' : '↻ Re-Audit Selected'}
+          </button>
+          <button
+            className="btn btn-outline"
+            onClick={() => downloadFileFromUrl(getExportCsvUrl(datasetId, v2Id, false))}
+            disabled={!v2Id || comparing}
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+            title="Download CSV for Version 2"
+          >
+            ⬇ Export V2 CSV
           </button>
         </div>
       </div>

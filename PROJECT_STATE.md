@@ -43,9 +43,9 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Cleaning preview** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Non-mutating preview API & UI for median/mode imputation, duplicate removal, constant column drop; returns bounded sample diffs, row/cell deltas without modifying stored data | None | `backend/tests/test_transformations.py` 12 passed (median, mode, duplicate, constant col, immutability, preview/apply parity) |
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Applying calls same transformation engine; persists new immutable `DatasetVersion` (v2, v3, etc.); records `Transformation` history row with parameters and metrics; auto-triggers re-audit in dashboard | Comparison view between versions (Phase 9) | `backend/tests/test_transformations.py` lifecycle test passed; 56 total tests passed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells, duplicates, row/col counts, severity counts); findings transition diff (resolved/unresolved/new); schema column additions/drops; transformation lineage timeline; re-audit on demand | None | `backend/tests/test_comparison.py` 6 passed; 62 total tests passing in 2.80s |
-| **CSV and report export** | NOT_STARTED | `backend/app/services/export.py` | CSV storage retrieval ready | CSV version download endpoint, HTML/JSON audit report generator | None yet |
+| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Version-specific CSV download; formula injection prevention (`safe_mode=true` prepending `'`); standalone self-contained HTML audit report; structured machine-readable JSON report; direct UI export triggers | None | `backend/tests/test_export.py` 6 passed; 68 total tests passing in 3.15s |
 | **Dataset deletion & reliability** | PARTIAL | `backend/app/api/routes/datasets.py`, `frontend/src/components/DatasetTable.jsx` | DELETE `/api/v1/datasets/{id}` endpoint and UI delete button with confirmation dialog; DB records cascade and files purged | Reliability edge cases pass (Phase 11) | `test_cascade_delete_dataset_and_files` PASSED |
-| **Automated tests** | VERIFIED | `backend/tests/` | 62 automated unit, persistence, profiling, upload, preview, rule, quality score, transformation, and comparison tests passing | Additional export tests in Phase 10 | 62 passed in 2.80s |
+| **Automated tests** | VERIFIED | `backend/tests/` | 68 automated unit, persistence, profiling, upload, preview, rule, quality score, transformation, comparison, and export tests passing | Final reliability and E2E demo tests (Phases 11-12) | 68 passed in 3.15s |
 | **README & deployment** | PARTIAL | `README.md`, `docs/DECISIONS.md`, `.env.example` | Setup instructions, architecture, invariants documented | Verified production deployment | Docs and setup verified locally |
 | **Demo and final submission checklist** | NOT_STARTED | `docs/` | PRD criteria documented | Reproducible test CSV with known quality defects, demo verification | None yet |
 
@@ -156,18 +156,12 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 
 ## 7. Next Actions (Ordered)
 
-1. **Next exact action:** Phase 10 — CSV Export and Audit Report Generator:
-   - Implement version export endpoint: `GET /api/v1/datasets/{dataset_id}/versions/{version_id}/export`.
-     - Downloads clean CSV representation for specified version.
-     - Implements spreadsheet formula injection prevention (prefixing leading `=`, `+`, `-`, `@`, `\t`, `\r` with `'` when `safe_mode=true`).
-     - Safe generated filename: `{dataset_name}_v{version_number}_{timestamp}.csv`.
-   - Implement audit report generator endpoint: `GET /api/v1/datasets/{dataset_id}/audits/{audit_id}/report`.
-     - Formats: JSON download and self-contained HTML report.
-     - Report includes dataset metadata, version dimensions, audit status, quality score with penalty deductions, findings with severity and structured evidence, transformations applied, and comparison summary.
-   - Frontend export UI buttons on `AuditDashboard.jsx`, `CompareView.jsx`, and `DatasetTable.jsx`.
-   - Pytest unit tests in `backend/tests/test_export.py`.
-2. Phase 11: Dataset deletion, edge cases, error state handling, and reliability pass.
-3. Phase 12: End-to-end testing, reproducible demo dataset (`sample_datasets/demo_dirty_dataset.csv`), and final documentation polish.
+1. **Next exact action:** Phase 11 — Dataset Deletion, Error States, and Reliability Pass:
+   - Perform audit of deletion cascade cleanup (confirm physical storage files and SQLite foreign key cascades delete completely).
+   - Verify consistent error response envelopes across all endpoints (400, 404, 413, 422).
+   - Review frontend error states (offline banner, retry button, network failure graceful handling).
+   - Add reliability tests in `backend/tests/test_reliability.py`.
+2. Phase 12: End-to-end testing, reproducible demo dataset (`sample_datasets/demo_dirty_dataset.csv`), and final documentation polish.
 
 ## 8. Things That Must Not Be Regressed
 
@@ -186,7 +180,7 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 2. Read the PRD and AI Agent Prompt Pack (`DataLens_AI_Agent_Prompt_Pack.md`).
 3. Inspect `git status`, recent commits, relevant source files, and tests.
 4. Verify this file's claims against code and tests; correct discrepancies.
-5. Continue from the first incomplete, unblocked action above (Phase 10).
+5. Continue from the first incomplete, unblocked action above (Phase 11).
 6. Do not restart or rewrite working features.
 7. Run relevant tests after changes.
 8. Update this file and append a progress entry before ending.
@@ -215,22 +209,23 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 - Implemented `TransformationEngine` supporting 4 operations (`impute_median`, `impute_mode`, `remove_duplicates`, `drop_constant_column`), preview and apply API routes, `CleaningPanel.jsx` with before/after diff table, child version creation, and 12 tests. 56 tests passed.
 
 ### 2026-10-27 — Phase 9: Version History, Re-Audit, and Multi-Version Comparison
-- **Goal:** Implement multi-version comparison service, lineage history API, findings diff transitions, and side-by-side comparison dashboard.
+- Implemented `ComparisonService`, lineage history API, findings diff transitions, `CompareView.jsx` side-by-side dashboard with delta metrics, and 6 tests. 62 tests passed.
+
+### 2026-10-27 — Phase 10: CSV Export and HTML/JSON Audit Report Generator
+- **Goal:** Implement real dataset version CSV export with formula injection prevention, and standalone HTML / machine JSON audit report downloads.
 - **Changes:**
-  - Implemented `ComparisonService` in `backend/app/services/comparison.py`:
-    - Evaluates score deltas, methodology compatibility, and component penalty reductions.
-    - Computes metrics deltas (rows, columns, missing cells, duplicate rows, severity findings).
-    - Classifies findings transition diff into `resolved` (fixed), `unresolved` (persisting), and `new` (introduced).
-    - Tracks column additions/drops between version schemas.
-    - Associates chronological transformation steps leading to the target version.
-  - Implemented Pydantic comparison schemas in `backend/app/schemas/comparison.py`.
-  - Implemented API routes in `backend/app/api/routes/comparison.py`:
-    - `GET /api/v1/datasets/{id}/compare?v1={v1}&v2={v2}` (defaults to v1 vs current version).
-    - `GET /api/v1/datasets/{id}/history` (chronological version lineage with audit snapshots).
-  - Built `frontend/src/components/CompareView.jsx` with version selectors, swap control, score cards, deduction comparison table, metric deltas, findings transition tabs (Resolved / Unresolved / New), transformation timeline, and measured improvement disclaimer.
-  - Added comparison API functions in `frontend/src/api/client.js` (`compareVersions`, `getVersionHistory`, `listVersions`).
-  - Integrated `CompareView` into `App.jsx`, `AuditDashboard.jsx`, and `DatasetTable.jsx`.
-  - Added 6 automated tests in `backend/tests/test_comparison.py`.
-- **Tests/results:** Pytest passed 62/62 tests in 2.80s; Vite build succeeded in 1.67s.
-- **Unfinished work:** CSV and report export (Phase 10), reliability pass (Phase 11).
-- **Next action:** Phase 10: Implement CSV export and HTML/JSON audit report generator.
+  - Implemented `ExportService` in `backend/app/services/export.py`:
+    - `export_csv`: downloads clean CSV for selected dataset version with safe filename; supports `spreadsheet_safe=True` escaping formula prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) with single quote `'`.
+    - `generate_html_report`: generates self-contained standalone HTML report with embedded responsive styles, score card, KPI grid, transparent deductions table, finding cards with expandable structured evidence JSON, and transformation lineage.
+    - `generate_json_report`: structured machine-readable JSON report payload.
+  - Implemented API routes in `backend/app/api/routes/exports.py`:
+    - `GET /api/v1/datasets/{id}/versions/{v_id}/export`: CSV file download with attachment header.
+    - `GET /api/v1/datasets/{id}/export`: Shortcut for current version CSV download.
+    - `GET /api/v1/datasets/{id}/audits/{audit_id}/report`: Audit report in HTML or JSON format.
+    - `GET /api/v1/datasets/{id}/report`: Shortcut for latest audit report download.
+  - Added frontend export download helpers in `frontend/src/api/client.js` (`getExportCsvUrl`, `getExportReportUrl`, `downloadFileFromUrl`).
+  - Integrated export controls in `AuditDashboard.jsx` (Export dropdown with Standard CSV, Spreadsheet-Safe CSV, HTML Report, JSON Report), `CompareView.jsx` (Export V2 CSV), and `DatasetTable.jsx` (Export CSV).
+  - Added 6 automated tests in `backend/tests/test_export.py`.
+- **Tests/results:** Pytest passed 68/68 tests in 3.15s; Vite build succeeded in 1.70s.
+- **Unfinished work:** Reliability pass (Phase 11) and demo fixture & docs (Phase 12).
+- **Next action:** Phase 11: Dataset deletion, error envelope audit, and reliability pass.
