@@ -252,8 +252,10 @@ class DatasetService:
         """
         dataset = self.get_dataset(db, dataset_id)
 
-        # Collect all file references before deleting DB records
+        # Collect all file references (CSVs and profile caches) before deleting DB records
         storage_refs = [v.storage_reference for v in dataset.versions if v.storage_reference]
+        for v in dataset.versions:
+            storage_refs.append(f"{v.id}.profile.json")
         if dataset.storage_reference and dataset.storage_reference not in storage_refs:
             storage_refs.append(dataset.storage_reference)
 

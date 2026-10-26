@@ -1,0 +1,21 @@
+customer_id,name,age,salary,country,department,churn,notes
+CUST_001,Alice Johnson,28,65000,USA,Engineering,No,Active employee
+CUST_002,Bob Smith,34,72000,USA,Sales,No,Quarterly lead
+CUST_003,Charlie Davis,,58000,USA,Marketing,No,Pending contract
+CUST_004,Diana Evans,42,85000,USA,Engineering,No,Senior engineer
+CUST_005,Evan Brown,29,,USA,Support,No,Tier 1 support
+CUST_006,Fiona Green,31,69000,USA,Engineering,No,Full-stack
+CUST_007,George Hall,55,95000,USA,Executive,No,Director
+CUST_008,Hannah White,26,52000,USA,Support,No,Junior analyst
+CUST_009,Ian Black,47,110000,USA,Engineering,No,Principal architect
+CUST_010,Jack Wilson,38,78000,USA,Sales,No,Account manager
+CUST_001,Alice Johnson,28,65000,USA,Engineering,No,Active employee
+CUST_012,Karen Adams,36,74000,USA,Marketing,No,Content lead
+CUST_013,Leo Scott,invalid_age,61000,USA,Support,No,Phone support
+CUST_014,Mona Clark,33,70000,USA,Sales,No,Field rep
+CUST_015,Nathan Wright,62,4500000,USA,Executive,Yes,Outlier compensation package
+CUST_016,Olivia King,27,,USA,Marketing,No,Social media
+CUST_017,Paul Harris,,67000,USA,Engineering,No,Backend developer
+CUST_018,Quinn Baker,40,82000,USA,Sales,No,Sales engineer
+CUST_019,Rachel Moore,32,71000,USA,Support,No,Escalations
+CUST_020,Sam Taylor,25,49000,USA,Support,No,=1+1 formula test
