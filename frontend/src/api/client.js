@@ -105,6 +105,17 @@ export async function getDatasetPreview(datasetId, versionId = null, limit = 20)
 }
 
 /**
+ * Get statistical profile for a dataset version
+ */
+export async function getDatasetProfile(datasetId, versionId = null) {
+  let url = `/datasets/${datasetId}/profile`;
+  if (versionId) {
+    url += `?version_id=${encodeURIComponent(versionId)}`;
+  }
+  return apiClient(url);
+}
+
+/**
  * Delete a dataset and its versions
  */
 export async function deleteDataset(datasetId) {

@@ -5,6 +5,13 @@ from backend.app.schemas.dataset import (
     DatasetVersionResponse,
     DatasetPreviewResponse,
 )
+from backend.app.schemas.profile import (
+    NumericStats,
+    CategoricalStats,
+    DatetimeStats,
+    ColumnProfile,
+    DatasetProfileResponse,
+)
 
 __all__ = [
     "HealthResponse",
@@ -13,4 +20,9 @@ __all__ = [
     "DatasetListResponse",
     "DatasetVersionResponse",
     "DatasetPreviewResponse",
+    "NumericStats",
+    "CategoricalStats",
+    "DatetimeStats",
+    "ColumnProfile",
+    "DatasetProfileResponse",
 ]

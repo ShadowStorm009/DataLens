@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh }) {
+export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh, onViewProfile }) {
   const [deletingId, setDeletingId] = useState(null);
 
   const handleDelete = async (dataset) => {
@@ -82,6 +82,13 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
                   </td>
                   <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                      <button
+                        className="btn btn-primary"
+                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                        onClick={() => onViewProfile && onViewProfile(ds)}
+                      >
+                        View Profile
+                      </button>
                       <button
                         className="btn btn-outline"
                         style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}

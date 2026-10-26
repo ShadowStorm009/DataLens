@@ -12,6 +12,7 @@ from backend.app.schemas.dataset import (
     DatasetPreviewResponse,
     DatasetVersionResponse,
 )
+from backend.app.schemas.profile import DatasetProfileResponse
 from backend.app.services.dataset_service import dataset_service
 from backend.app.services.storage import storage_service
 from backend.app.services.csv_validator import csv_validator
@@ -138,6 +139,53 @@ def list_dataset_versions(
 ):
     """List all versions of a dataset in chronological order."""
     return dataset_service.list_versions(db=db, dataset_id=dataset_id)
+
+@router.get("/{dataset_id}/profile", response_model=DatasetProfileResponse)
+def get_dataset_profile(
+    dataset_id: str,
+    version_id: Optional[str] = Query(None, description="Optional version ID. Defaults to current version."),
+    db: Session = Depends(get_db),
+):
+    """
+    Generate or retrieve cached statistical profile for a dataset version.
+    Computes row/column counts, missing cell stats, duplicates, and column distributions.
+    """
+    import json
+    from backend.app.audit.profiling import profiling_engine
+
+    dataset = dataset_service.get_dataset(db=db, dataset_id=dataset_id)
+    target_version_id = version_id or dataset.current_version_id
+    if not target_version_id:
+        raise FileValidationError("Dataset has no associated versions")
+
+    version = dataset_service.get_version(db=db, version_id=target_version_id)
+
+    # Check cache keyed by immutable version ID
+    cache_path = dataset_service.storage.base_dir / f"{version.id}.profile.json"
+    if cache_path.exists():
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+            return DatasetProfileResponse(**cached_data)
+        except Exception:
+            pass  # Fall back to recomputation if cache read fails
+
+    # Read dataframe and compute profile
+    df = dataset_service.storage.read_dataframe(version.storage_reference)
+    profile_data = profiling_engine.profile_dataframe(df)
+
+    profile_data["dataset_id"] = dataset.id
+    profile_data["version_id"] = version.id
+    profile_data["version_number"] = version.version_number
+
+    # Cache profile for this immutable version
+    try:
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump(profile_data, f)
+    except Exception:
+        pass
+
+    return DatasetProfileResponse(**profile_data)
 
 @router.delete("/{dataset_id}", status_code=status.HTTP_200_OK)
 def delete_dataset(

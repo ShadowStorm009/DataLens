@@ -3,6 +3,7 @@ import { checkHealth, listDatasets, deleteDataset } from './api/client';
 import UploadSection from './components/UploadSection';
 import DatasetTable from './components/DatasetTable';
 import PreviewModal from './components/PreviewModal';
+import ProfileView from './components/ProfileView';
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -11,6 +12,7 @@ export default function App() {
   const [datasetsLoading, setDatasetsLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const [previewingDataset, setPreviewingDataset] = useState(null);
+  const [profilingDataset, setProfilingDataset] = useState(null);
 
   const fetchHealth = async () => {
     setHealthLoading(true);
@@ -50,6 +52,9 @@ export default function App() {
     try {
       await deleteDataset(datasetId);
       setDatasets((prev) => prev.filter((d) => d.id !== datasetId));
+      if (profilingDataset && profilingDataset.id === datasetId) {
+        setProfilingDataset(null);
+      }
     } catch (err) {
       alert(`Failed to delete dataset: ${err.message}`);
     }
@@ -58,7 +63,7 @@ export default function App() {
   return (
     <div className="app-container">
       <header className="navbar">
-        <div className="brand">
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setProfilingDataset(null)}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.3-4.3"></path>
@@ -67,6 +72,15 @@ export default function App() {
           <span className="brand-badge">Dataset Quality Auditor</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {profilingDataset && (
+            <button
+              className="btn btn-outline"
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+              onClick={() => setProfilingDataset(null)}
+            >
+              &larr; Dashboard
+            </button>
+          )}
           {healthLoading && <span className="badge badge-warning">Checking Backend...</span>}
           {!healthLoading && health && <span className="badge badge-success">Backend Connected</span>}
           {!healthLoading && !health && <span className="badge badge-danger">Backend Offline</span>}
@@ -85,15 +99,25 @@ export default function App() {
           </div>
         )}
 
-        <UploadSection onUploadSuccess={handleUploadSuccess} />
+        {profilingDataset ? (
+          <ProfileView
+            dataset={profilingDataset}
+            onBack={() => setProfilingDataset(null)}
+          />
+        ) : (
+          <>
+            <UploadSection onUploadSuccess={handleUploadSuccess} />
 
-        <DatasetTable
-          datasets={datasets}
-          loading={datasetsLoading}
-          onPreview={(ds) => setPreviewingDataset(ds)}
-          onDelete={handleDelete}
-          onRefresh={fetchDatasets}
-        />
+            <DatasetTable
+              datasets={datasets}
+              loading={datasetsLoading}
+              onPreview={(ds) => setPreviewingDataset(ds)}
+              onViewProfile={(ds) => setProfilingDataset(ds)}
+              onDelete={handleDelete}
+              onRefresh={fetchDatasets}
+            />
+          </>
+        )}
 
         {previewingDataset && (
           <PreviewModal
@@ -104,7 +128,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        DataLens &bull; Deterministic Tabular Quality Auditor &bull; Phase 4 Verified
+        DataLens &bull; Deterministic Tabular Quality Auditor &bull; Phase 5 Profiling Verified
       </footer>
     </div>
   );
