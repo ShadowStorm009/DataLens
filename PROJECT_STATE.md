@@ -15,8 +15,8 @@
 
 - **Last updated:** 2026-10-26 23:49 IST
 - **Branch:** `main`
-- **HEAD commit:** `294cb8b` (Phase 4 commit pending)
-- **Git status:** Clean staging in progress for Phase 4 upload and preview files.
+- **HEAD commit:** `4306672`
+- **Git status:** Clean on `main`.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with `/health`, CORS, upload, preview, and dataset management endpoints)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
