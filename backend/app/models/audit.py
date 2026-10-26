@@ -2,7 +2,8 @@ import uuid
 from datetime import datetime, timezone
 from sqlalchemy import String, Float, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from typing import List, TYPE_CHECKING
+import json
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from backend.app.db.base import Base
 
 if TYPE_CHECKING:
@@ -33,6 +34,15 @@ class AuditRun(Base):
     score_method_version: Mapped[str] = mapped_column(String(20), nullable=False, default="1.0")
     serialized_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    @property
+    def summary(self) -> Optional[Dict[str, Any]]:
+        if self.serialized_summary:
+            try:
+                return json.loads(self.serialized_summary)
+            except Exception:
+                return None
+        return None
+
     # Relationships
     dataset: Mapped["Dataset"] = relationship("Dataset", back_populates="audit_runs")
     version: Mapped["DatasetVersion"] = relationship("DatasetVersion", back_populates="audit_runs")
@@ -40,6 +50,7 @@ class AuditRun(Base):
         "Finding",
         back_populates="audit_run",
         cascade="all, delete-orphan",
+        order_by="Finding.severity",
     )
 
 class Finding(Base):

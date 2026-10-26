@@ -182,6 +182,120 @@ button {
   gap: 1.5rem;
 }
 
+.badge-info {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
+}
+
+.badge-high {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  font-weight: 700;
+}
+
+.badge-medium {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid #fde68a;
+  font-weight: 600;
+}
+
+.badge-low {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
+  font-weight: 500;
+}
+
+.score-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 1.75rem;
+  box-shadow: var(--shadow-md);
+}
+
+.score-excellent {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 4px solid #86efac;
+}
+
+.score-good {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 4px solid #fde047;
+}
+
+.score-poor {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 4px solid #fca5a5;
+}
+
+.finding-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.finding-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.finding-card.severity-high {
+  border-left: 5px solid var(--danger);
+}
+
+.finding-card.severity-medium {
+  border-left: 5px solid var(--warning);
+}
+
+.finding-card.severity-low {
+  border-left: 5px solid var(--primary);
+}
+
+.drawer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.drawer-content {
+  width: 100%;
+  max-width: 580px;
+  background: var(--bg-card);
+  height: 100%;
+  overflow-y: auto;
+  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .footer {
   text-align: center;
   padding: 1.5rem;

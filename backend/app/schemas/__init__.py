@@ -13,6 +13,13 @@ from backend.app.schemas.profile import (
     DatasetProfileResponse,
 )
 
+from backend.app.schemas.audit import (
+    FindingResponse,
+    AuditRunRequest,
+    AuditRunResponse,
+    AuditListResponse,
+)
+
 __all__ = [
     "HealthResponse",
     "ErrorResponse",
@@ -25,4 +32,8 @@ __all__ = [
     "DatetimeStats",
     "ColumnProfile",
     "DatasetProfileResponse",
+    "FindingResponse",
+    "AuditRunRequest",
+    "AuditRunResponse",
+    "AuditListResponse",
 ]

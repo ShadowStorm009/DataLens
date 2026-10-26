@@ -124,4 +124,49 @@ export async function deleteDataset(datasetId) {
   });
 }
 
+/**
+ * Trigger an audit run for a dataset version
+ */
+export async function runAudit(datasetId, targetColumn = null, versionId = null) {
+  const body = {};
+  if (targetColumn) body.target_column = targetColumn;
+  if (versionId) body.version_id = versionId;
+
+  return apiClient(`/datasets/${datasetId}/audits`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * List all audit runs for a dataset
+ */
+export async function listAudits(datasetId, versionId = null) {
+  let url = `/datasets/${datasetId}/audits`;
+  if (versionId) {
+    url += `?version_id=${encodeURIComponent(versionId)}`;
+  }
+  return apiClient(url);
+}
+
+/**
+ * Get detailed audit run by ID
+ */
+export async function getAudit(datasetId, auditId) {
+  return apiClient(`/datasets/${datasetId}/audits/${auditId}`);
+}
+
+/**
+ * Retrieve filtered findings for an audit run
+ */
+export async function listFindings(datasetId, auditId, { severity, ruleId, columnName } = {}) {
+  const params = new URLSearchParams();
+  if (severity) params.append('severity', severity);
+  if (ruleId) params.append('rule_id', ruleId);
+  if (columnName) params.append('column_name', columnName);
+
+  const qs = params.toString();
+  return apiClient(`/datasets/${datasetId}/audits/${auditId}/findings${qs ? `?${qs}` : ''}`);
+}
+
 export { API_BASE_URL, HEALTH_URL };

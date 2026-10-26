@@ -4,6 +4,7 @@ import UploadSection from './components/UploadSection';
 import DatasetTable from './components/DatasetTable';
 import PreviewModal from './components/PreviewModal';
 import ProfileView from './components/ProfileView';
+import AuditDashboard from './components/AuditDashboard';
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -11,15 +12,18 @@ export default function App() {
   const [datasets, setDatasets] = useState([]);
   const [datasetsLoading, setDatasetsLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
+
+  // Active view state
+  const [activeView, setActiveView] = useState('inventory'); // 'inventory', 'audit', 'profile'
+  const [selectedDataset, setSelectedDataset] = useState(null);
   const [previewingDataset, setPreviewingDataset] = useState(null);
-  const [profilingDataset, setProfilingDataset] = useState(null);
 
   const fetchHealth = async () => {
     setHealthLoading(true);
     try {
       const data = await checkHealth();
       setHealth(data);
-    } catch (err) {
+    } catch (_) {
       setHealth(null);
     } finally {
       setHealthLoading(false);
@@ -46,24 +50,43 @@ export default function App() {
 
   const handleUploadSuccess = (newDataset) => {
     setDatasets((prev) => [newDataset, ...prev]);
+    // Navigate straight to the Audit view of the newly uploaded dataset
+    setSelectedDataset(newDataset);
+    setActiveView('audit');
   };
 
   const handleDelete = async (datasetId) => {
     try {
       await deleteDataset(datasetId);
       setDatasets((prev) => prev.filter((d) => d.id !== datasetId));
-      if (profilingDataset && profilingDataset.id === datasetId) {
-        setProfilingDataset(null);
+      if (selectedDataset && selectedDataset.id === datasetId) {
+        setSelectedDataset(null);
+        setActiveView('inventory');
       }
     } catch (err) {
       alert(`Failed to delete dataset: ${err.message}`);
     }
   };
 
+  const handleViewAudit = (dataset) => {
+    setSelectedDataset(dataset);
+    setActiveView('audit');
+  };
+
+  const handleViewProfile = (dataset) => {
+    setSelectedDataset(dataset);
+    setActiveView('profile');
+  };
+
+  const handleBackToInventory = () => {
+    setSelectedDataset(null);
+    setActiveView('inventory');
+  };
+
   return (
     <div className="app-container">
       <header className="navbar">
-        <div className="brand" style={{ cursor: 'pointer' }} onClick={() => setProfilingDataset(null)}>
+        <div className="brand" style={{ cursor: 'pointer' }} onClick={handleBackToInventory}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <path d="m21 21-4.3-4.3"></path>
@@ -72,13 +95,13 @@ export default function App() {
           <span className="brand-badge">Dataset Quality Auditor</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {profilingDataset && (
+          {activeView !== 'inventory' && (
             <button
               className="btn btn-outline"
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
-              onClick={() => setProfilingDataset(null)}
+              onClick={handleBackToInventory}
             >
-              &larr; Dashboard
+              &larr; All Datasets
             </button>
           )}
           {healthLoading && <span className="badge badge-warning">Checking Backend...</span>}
@@ -99,12 +122,23 @@ export default function App() {
           </div>
         )}
 
-        {profilingDataset ? (
-          <ProfileView
-            dataset={profilingDataset}
-            onBack={() => setProfilingDataset(null)}
+        {activeView === 'audit' && selectedDataset && (
+          <AuditDashboard
+            dataset={selectedDataset}
+            onBack={handleBackToInventory}
+            onSwitchToProfile={() => setActiveView('profile')}
+            onSwitchToPreview={() => setPreviewingDataset(selectedDataset)}
           />
-        ) : (
+        )}
+
+        {activeView === 'profile' && selectedDataset && (
+          <ProfileView
+            dataset={selectedDataset}
+            onBack={handleBackToInventory}
+          />
+        )}
+
+        {activeView === 'inventory' && (
           <>
             <UploadSection onUploadSuccess={handleUploadSuccess} />
 
@@ -112,7 +146,8 @@ export default function App() {
               datasets={datasets}
               loading={datasetsLoading}
               onPreview={(ds) => setPreviewingDataset(ds)}
-              onViewProfile={(ds) => setProfilingDataset(ds)}
+              onViewProfile={handleViewProfile}
+              onViewAudit={handleViewAudit}
               onDelete={handleDelete}
               onRefresh={fetchDatasets}
             />
@@ -128,7 +163,7 @@ export default function App() {
       </main>
 
       <footer className="footer">
-        DataLens &bull; Deterministic Tabular Quality Auditor &bull; Phase 5 Profiling Verified
+        DataLens &bull; Deterministic Dataset Quality Auditor &bull; Phase 6 &amp; 7 Audit Engine &amp; Dashboard
       </footer>
     </div>
   );
