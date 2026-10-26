@@ -6,7 +6,13 @@ class DuplicateRowsRule(AuditRule):
     """
     Checks for exact duplicate rows across all columns.
     Reports duplicate counts, percentages, and sample row indices without altering the dataset.
+
+    Configurable thresholds:
+      - high_threshold_pct: percentage of duplicates at or above which severity is 'high' (default: 10.0%)
     """
+
+    def __init__(self, high_threshold_pct: float = 10.0):
+        self.high_threshold_pct = high_threshold_pct
 
     @property
     def rule_id(self) -> str:
@@ -35,7 +41,7 @@ class DuplicateRowsRule(AuditRule):
                 # Extract up to 10 sample duplicate row indices
                 sample_indices = df[duplicate_mask].index[:10].tolist()
 
-                severity = "high" if dup_pct >= 10.0 else "medium"
+                severity = "high" if dup_pct >= self.high_threshold_pct else "medium"
 
                 findings.append(
                     RuleFinding(

@@ -7,7 +7,19 @@ class PotentialLeakageRule(AuditRule):
     """
     Detects potential data leakage or redundant proxy features using clearly described heuristics.
     Never claims definitive leakage; clearly states domain uncertainty.
+
+    Configurable thresholds:
+      - target_correlation_threshold: Pearson |r| with target column for leakage heuristic (default: 0.98)
+      - collinearity_correlation_threshold: pairwise |r| between features for duplicate heuristic (default: 0.999)
     """
+
+    def __init__(
+        self,
+        target_correlation_threshold: float = 0.98,
+        collinearity_correlation_threshold: float = 0.999,
+    ):
+        self.target_correlation_threshold = target_correlation_threshold
+        self.collinearity_correlation_threshold = collinearity_correlation_threshold
 
     @property
     def rule_id(self) -> str:
@@ -55,7 +67,7 @@ class PotentialLeakageRule(AuditRule):
                             corr = float(np.corrcoef(x, y)[0, 1])
                             abs_corr = abs(corr)
 
-                            if abs_corr >= 0.98:
+                            if abs_corr >= self.target_correlation_threshold:
                                 findings.append(
                                     RuleFinding(
                                         rule_id=self.rule_id,
@@ -104,7 +116,7 @@ class PotentialLeakageRule(AuditRule):
                     mask = s1.notna() & s2.notna()
                     if mask.sum() >= 15:
                         corr = float(np.corrcoef(s1[mask], s2[mask])[0, 1])
-                        if abs(corr) >= 0.999:
+                        if abs(corr) >= self.collinearity_correlation_threshold:
                             findings.append(
                                 RuleFinding(
                                     rule_id=self.rule_id,

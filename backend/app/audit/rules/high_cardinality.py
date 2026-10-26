@@ -6,7 +6,15 @@ class HighCardinalityRule(AuditRule):
     """
     Heuristic check for columns with high cardinality or identifier-like characteristics.
     Explicitly explains uncertainty: high cardinality is not automatically an error.
+
+    Configurable thresholds:
+      - cardinality_ratio_threshold: distinct count / non-null count ratio to trigger heuristic (default: 0.90)
+      - min_distinct_count: minimum distinct values required before heuristic triggers (default: 15)
     """
+
+    def __init__(self, cardinality_ratio_threshold: float = 0.90, min_distinct_count: int = 15):
+        self.cardinality_ratio_threshold = cardinality_ratio_threshold
+        self.min_distinct_count = min_distinct_count
 
     @property
     def rule_id(self) -> str:
@@ -43,8 +51,8 @@ class HighCardinalityRule(AuditRule):
                 distinct_count = non_null_series.nunique()
                 cardinality_ratio = round(distinct_count / non_null_count, 4)
 
-                # Heuristic: > 90% unique values and at least 15 distinct values
-                if cardinality_ratio >= 0.90 and distinct_count >= 15:
+                # Heuristic: > threshold unique values and at least min_distinct_count values
+                if cardinality_ratio >= self.cardinality_ratio_threshold and distinct_count >= self.min_distinct_count:
                     is_exact_unique = (distinct_count == non_null_count)
                     severity = "medium" if is_exact_unique else "low"
 

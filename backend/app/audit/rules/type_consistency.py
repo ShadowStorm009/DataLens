@@ -7,7 +7,22 @@ class TypeConsistencyRule(AuditRule):
     """
     Detects mixed-type columns where values cannot be converted to an inferred dominant type
     without silent coercion or data corruption.
+
+    Configurable thresholds:
+      - min_numeric_ratio: minimum proportion of values that parse as numeric to consider column predominantly numeric (default: 0.50)
+      - min_datetime_ratio: minimum proportion of values that parse as datetime to consider column predominantly datetime (default: 0.60)
+      - high_severity_pct: percentage of unparseable values at or above which severity is 'high' (default: 10.0%)
     """
+
+    def __init__(
+        self,
+        min_numeric_ratio: float = 0.50,
+        min_datetime_ratio: float = 0.60,
+        high_severity_pct: float = 10.0,
+    ):
+        self.min_numeric_ratio = min_numeric_ratio
+        self.min_datetime_ratio = min_datetime_ratio
+        self.high_severity_pct = high_severity_pct
 
     @property
     def rule_id(self) -> str:
@@ -37,19 +52,19 @@ class TypeConsistencyRule(AuditRule):
                 if non_null_count < 4:
                     continue
 
-                # Check 1: Predominantly numeric (50% to 99.9% numeric)
+                # Check 1: Predominantly numeric
                 numeric_parsed = pd.to_numeric(non_null_series, errors="coerce")
                 numeric_valid_mask = numeric_parsed.notna() & np.isfinite(numeric_parsed)
                 valid_num_count = int(numeric_valid_mask.sum())
                 num_ratio = valid_num_count / non_null_count
 
-                if 0.50 <= num_ratio < 1.0:
+                if self.min_numeric_ratio <= num_ratio < 1.0:
                     inconsistent_mask = ~numeric_valid_mask
                     inconsistent_count = int(inconsistent_mask.sum())
                     inconsistent_pct = round((inconsistent_count / non_null_count) * 100.0, 2)
                     sample_invalids = non_null_series[inconsistent_mask].astype(str).unique()[:5].tolist()
 
-                    severity = "high" if inconsistent_pct >= 10.0 else "medium"
+                    severity = "high" if inconsistent_pct >= self.high_severity_pct else "medium"
 
                     findings.append(
                         RuleFinding(

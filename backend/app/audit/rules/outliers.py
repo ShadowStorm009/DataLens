@@ -7,7 +7,15 @@ class NumericOutliersRule(AuditRule):
     """
     Detects potential numeric outliers using Tukey's Interquartile Range (IQR) fences.
     Reports Q1, Q3, IQR, lower/upper fences, and counts with explicit non-destructive uncertainty warnings.
+
+    Configurable thresholds:
+      - iqr_multiplier: multiplier for IQR to calculate Tukey fences [Q1 - k*IQR, Q3 + k*IQR] (default: 1.5)
+      - outlier_pct_medium_threshold: percentage of outliers at or above which severity is 'medium' (default: 5.0%)
     """
+
+    def __init__(self, iqr_multiplier: float = 1.5, outlier_pct_medium_threshold: float = 5.0):
+        self.iqr_multiplier = iqr_multiplier
+        self.outlier_pct_medium_threshold = outlier_pct_medium_threshold
 
     @property
     def rule_id(self) -> str:
@@ -19,7 +27,7 @@ class NumericOutliersRule(AuditRule):
 
     @property
     def description(self) -> str:
-        return "Identifies potential numerical anomalies outside 1.5 * IQR fences without assuming error."
+        return "Identifies potential numerical anomalies outside IQR fences without assuming error."
 
     def evaluate(self, df: pd.DataFrame, **kwargs) -> List[RuleFinding]:
         findings: List[RuleFinding] = []
@@ -48,8 +56,8 @@ class NumericOutliersRule(AuditRule):
                     # Constant or discrete step with zero spread in IQR
                     continue
 
-                lower_fence = round(q1 - 1.5 * iqr, 4)
-                upper_fence = round(q3 + 1.5 * iqr, 4)
+                lower_fence = round(q1 - self.iqr_multiplier * iqr, 4)
+                upper_fence = round(q3 + self.iqr_multiplier * iqr, 4)
 
                 outlier_mask = (numeric_valid < lower_fence) | (numeric_valid > upper_fence)
                 outliers = numeric_valid[outlier_mask]
@@ -58,7 +66,7 @@ class NumericOutliersRule(AuditRule):
                 if outlier_count > 0:
                     total_numeric = len(numeric_valid)
                     outlier_pct = round((outlier_count / total_numeric) * 100.0, 2)
-                    severity = "medium" if outlier_pct >= 5.0 else "low"
+                    severity = "medium" if outlier_pct >= self.outlier_pct_medium_threshold else "low"
 
                     sample_outliers = [round(float(v), 4) for v in outliers.iloc[:5].tolist()]
 

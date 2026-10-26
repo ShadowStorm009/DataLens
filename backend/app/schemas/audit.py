@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, computed_field
 import json
 
 class FindingResponse(BaseModel):
@@ -14,6 +14,11 @@ class FindingResponse(BaseModel):
     structured_evidence: Optional[Union[Dict[str, Any], List[Any], str]] = None
     recommendation: str
     finding_type: str
+
+    @computed_field
+    def evidence(self) -> Optional[Union[Dict[str, Any], List[Any], str]]:
+        """Alias returning structured evidence as evidence."""
+        return self.structured_evidence
 
     @field_validator("structured_evidence", mode="before")
     @classmethod

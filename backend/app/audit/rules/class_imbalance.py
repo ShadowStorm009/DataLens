@@ -6,7 +6,25 @@ class ClassImbalanceRule(AuditRule):
     """
     Detects target-class imbalance in a selected categorical target column or candidate target columns.
     Reports class frequencies, imbalance ratio, and minority class share.
+
+    Configurable thresholds:
+      - high_ratio_threshold: majority:minority ratio for 'high' severity (default: 10.0)
+      - medium_ratio_threshold: majority:minority ratio for 'medium' severity (default: 4.0)
+      - high_minority_pct: minority percentage below which severity is 'high' (default: 5.0%)
+      - medium_minority_pct: minority percentage below which severity is 'medium' (default: 20.0%)
     """
+
+    def __init__(
+        self,
+        high_ratio_threshold: float = 10.0,
+        medium_ratio_threshold: float = 4.0,
+        high_minority_pct: float = 5.0,
+        medium_minority_pct: float = 20.0,
+    ):
+        self.high_ratio_threshold = high_ratio_threshold
+        self.medium_ratio_threshold = medium_ratio_threshold
+        self.high_minority_pct = high_minority_pct
+        self.medium_minority_pct = medium_minority_pct
 
     @property
     def rule_id(self) -> str:
@@ -65,8 +83,8 @@ class ClassImbalanceRule(AuditRule):
                 imbalance_ratio = round(majority_count / max(minority_count, 1), 2)
 
                 # Check if imbalance threshold breached
-                if minority_pct < 20.0 or imbalance_ratio >= 4.0:
-                    if minority_pct < 5.0 or imbalance_ratio >= 10.0:
+                if minority_pct < self.medium_minority_pct or imbalance_ratio >= self.medium_ratio_threshold:
+                    if minority_pct < self.high_minority_pct or imbalance_ratio >= self.high_ratio_threshold:
                         severity = "high"
                     else:
                         severity = "medium"

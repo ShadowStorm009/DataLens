@@ -297,3 +297,84 @@ def test_run_audit_endpoint_and_retrieve_findings(client: TestClient):
 
     err_res2 = client.get(f"/api/v1/datasets/{dataset_id}/audits/nonexistent-audit-id")
     assert err_res2.status_code == 404
+
+def test_audit_engine_determinism_same_input_same_results():
+    """Acceptance criterion: Same input and configuration produce the exact same results."""
+    from backend.app.audit.engine import AuditEngine
+    engine = AuditEngine()
+
+    df = pd.DataFrame({
+        "id": [f"ID_{i}" for i in range(20)],
+        "val": [10.0, 10.2, 9.8, 10.1, None, 10.3, 1000.0, 10.2, 10.1, 9.9] * 2,
+        "status": ["A", "A", "B", "A", "A", "A", "A", "A", "A", "A"] * 2,
+        "target": [0] * 18 + [1, 1],
+    })
+
+    score1, ver1, summary1, findings1 = engine.run_audit(df, target_column="target")
+    score2, ver2, summary2, findings2 = engine.run_audit(df, target_column="target")
+
+    # Exact deterministic score and version match
+    assert score1 == score2
+    assert ver1 == ver2
+    assert summary1["penalties"] == summary2["penalties"]
+    assert len(findings1) == len(findings2)
+
+    for f1, f2 in zip(findings1, findings2):
+        assert f1.rule_id == f2.rule_id
+        assert f1.severity == f2.severity
+        assert f1.column_name == f2.column_name
+        assert f1.title == f2.title
+        assert f1.structured_evidence == f2.structured_evidence
+
+def test_audit_engine_does_not_mutate_dataframe():
+    """Acceptance criterion: No destructive changes happen during an audit."""
+    from backend.app.audit.engine import AuditEngine
+    engine = AuditEngine()
+
+    original_df = pd.DataFrame({
+        "a": [1, 2, None, 4],
+        "b": ["x", "y", "z", "w"],
+        "c": [10.0, 20.0, 30.0, 40.0],
+    })
+    copied_df = original_df.copy(deep=True)
+
+    engine.run_audit(original_df)
+
+    pd.testing.assert_frame_equal(original_df, copied_df)
+
+def test_configurable_rule_thresholds():
+    """Verify that thresholds are configurable and alter severity as configured."""
+    # 2 missing cells out of 10 rows = 20.0%
+    # 1 missing cell out of 10 rows = 10.0%
+    df = pd.DataFrame({"col": [1, 2, 3, 4, 5, 6, 7, 8, 9, None]})  # 1/10 = 10%
+
+    # Default rule: high_threshold=20.0, medium_threshold=5.0 -> severity should be medium
+    default_rule = MissingValuesRule()
+    findings_default = default_rule.evaluate(df)
+    assert len(findings_default) == 1
+    assert findings_default[0].severity == "medium"
+
+    # Customized rule: high_threshold=8.0 -> severity should be high
+    custom_rule = MissingValuesRule(high_threshold=8.0)
+    findings_custom = custom_rule.evaluate(df)
+    assert len(findings_custom) == 1
+    assert findings_custom[0].severity == "high"
+
+def test_finding_response_evidence_alias():
+    """Verify FindingResponse schema provides .evidence alias matching structured_evidence."""
+    from backend.app.schemas.audit import FindingResponse
+    f = FindingResponse(
+        id="f1",
+        audit_id="a1",
+        rule_id="rule_missing_values",
+        column_name="col_x",
+        severity="high",
+        title="Missing values",
+        description="Missing 50%",
+        structured_evidence={"null_count": 5, "total_rows": 10},
+        recommendation="Impute values",
+        finding_type="missing_values",
+    )
+    assert f.evidence == {"null_count": 5, "total_rows": 10}
+    assert f.model_dump()["evidence"] == {"null_count": 5, "total_rows": 10}
+
