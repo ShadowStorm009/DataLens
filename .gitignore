@@ -1,0 +1,39 @@
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Node / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+.npm/
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment and secrets
+.env
+.env.local
+*.env
+
+# SQLite and storage
+*.db
+*.sqlite3
+storage/
+uploads/
+exports/
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
