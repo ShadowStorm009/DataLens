@@ -169,4 +169,45 @@ export async function listFindings(datasetId, auditId, { severity, ruleId, colum
   return apiClient(`/datasets/${datasetId}/audits/${auditId}/findings${qs ? `?${qs}` : ''}`);
 }
 
+/**
+ * Preview a cleaning transformation non-mutating
+ */
+export async function previewTransformation(datasetId, operationType, columnName = null, parameters = {}, versionId = null) {
+  const body = {
+    operation_type: operationType,
+    column_name: columnName,
+    parameters: parameters || {},
+  };
+  if (versionId) body.version_id = versionId;
+
+  return apiClient(`/datasets/${datasetId}/transformations/preview`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * Apply a cleaning transformation and create a new version
+ */
+export async function applyTransformation(datasetId, operationType, columnName = null, parameters = {}, versionId = null) {
+  const body = {
+    operation_type: operationType,
+    column_name: columnName,
+    parameters: parameters || {},
+  };
+  if (versionId) body.version_id = versionId;
+
+  return apiClient(`/datasets/${datasetId}/transformations/apply`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * List all transformations recorded for a dataset
+ */
+export async function listTransformations(datasetId) {
+  return apiClient(`/datasets/${datasetId}/transformations`);
+}
+
 export { API_BASE_URL, HEALTH_URL };

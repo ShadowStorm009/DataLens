@@ -30,6 +30,11 @@ class TransformationError(DataLensError):
     def __init__(self, message: str = "Transformation failed", details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=status.HTTP_400_BAD_REQUEST, details=details)
 
+class ValidationError(DataLensError):
+    """Validation failure on user input or operation parameters (400)."""
+    def __init__(self, message: str = "Validation error", details: Optional[Dict[str, Any]] = None):
+        super().__init__(message, status_code=status.HTTP_400_BAD_REQUEST, details=details)
+
 class StorageError(DataLensError):
     """File storage or I/O failure (500)."""
     def __init__(self, message: str = "Storage error occurred", details: Optional[Dict[str, Any]] = None):

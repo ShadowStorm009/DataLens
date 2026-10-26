@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { runAudit, listAudits, getAudit, getDatasetProfile } from '../api/client';
 import FindingDetailDrawer from './FindingDetailDrawer';
+import CleaningPanel from './CleaningPanel';
 
 export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onSwitchToPreview }) {
   const [audit, setAudit] = useState(null);
@@ -9,6 +10,8 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const [runningAudit, setRunningAudit] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFinding, setSelectedFinding] = useState(null);
+  const [showCleaningPanel, setShowCleaningPanel] = useState(false);
+  const [transformationSuccess, setTransformationSuccess] = useState(null);
 
   // Tab: 'findings' or 'columns'
   const [activeTab, setActiveTab] = useState('findings');
@@ -112,6 +115,22 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
     setActiveTab('findings');
   };
 
+  const handleTransformationApplied = async (res) => {
+    if (res.result_version_id) {
+      dataset.current_version_id = res.result_version_id;
+    }
+    if (res.result_version) {
+      dataset.row_count = res.result_version.row_count;
+      dataset.column_count = res.result_version.column_count;
+    }
+    setTransformationSuccess(
+      res.summary || 'Transformation successfully applied and new version created!'
+    );
+    setShowCleaningPanel(false);
+    // Automatically re-run audit on the newly created version!
+    await loadAuditData();
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.2s ease-in' }}>
       {/* Header bar */}
@@ -124,11 +143,18 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
             <h1 style={{ fontSize: '1.4rem', fontWeight: 700 }}>Audit Report: {dataset.name}</h1>
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Original file: <code>{dataset.original_filename}</code> &bull; Rows: {dataset.row_count.toLocaleString()} &bull; Columns: {dataset.column_count} &bull; Current Version: v1
+            Original file: <code>{dataset.original_filename}</code> &bull; Rows: {dataset.row_count.toLocaleString()} &bull; Columns: {dataset.column_count}
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button
+            className={`btn ${showCleaningPanel ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setShowCleaningPanel((prev) => !prev)}
+            style={{ fontSize: '0.85rem', fontWeight: 600 }}
+          >
+            {showCleaningPanel ? 'Close Cleaning Panel' : 'Clean & Transform'}
+          </button>
           {onSwitchToProfile && (
             <button className="btn btn-outline" onClick={onSwitchToProfile} style={{ fontSize: '0.85rem' }}>
               Full Profile Explorer
@@ -141,6 +167,26 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
           )}
         </div>
       </div>
+
+      {transformationSuccess && (
+        <div style={{ padding: '0.85rem 1.25rem', background: 'var(--success-bg)', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', color: 'var(--success)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', animation: 'fadeIn 0.2s ease-in' }}>
+          <div>
+            <strong>Success:</strong> {transformationSuccess}
+          </div>
+          <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }} onClick={() => setTransformationSuccess(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {showCleaningPanel && (
+        <CleaningPanel
+          dataset={dataset}
+          profile={profile}
+          onTransformationApplied={handleTransformationApplied}
+          onClose={() => setShowCleaningPanel(false)}
+        />
+      )}
 
       {error && (
         <div style={{ padding: '1rem', background: 'var(--danger-bg)', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

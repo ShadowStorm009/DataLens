@@ -20,6 +20,14 @@ from backend.app.schemas.audit import (
     AuditListResponse,
 )
 
+from backend.app.schemas.transformation import (
+    TransformationPreviewRequest,
+    TransformationPreviewResponse,
+    TransformationApplyRequest,
+    TransformationResponse,
+    TransformationListResponse,
+)
+
 __all__ = [
     "HealthResponse",
     "ErrorResponse",
@@ -36,4 +44,9 @@ __all__ = [
     "AuditRunRequest",
     "AuditRunResponse",
     "AuditListResponse",
+    "TransformationPreviewRequest",
+    "TransformationPreviewResponse",
+    "TransformationApplyRequest",
+    "TransformationResponse",
+    "TransformationListResponse",
 ]
