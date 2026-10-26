@@ -10,6 +10,9 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const [error, setError] = useState(null);
   const [selectedFinding, setSelectedFinding] = useState(null);
 
+  // Tab: 'findings' or 'columns'
+  const [activeTab, setActiveTab] = useState('findings');
+
   // Filters
   const [severityFilter, setSeverityFilter] = useState('all');
   const [ruleFilter, setRuleFilter] = useState('all');
@@ -22,7 +25,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch profile to know available columns for target selection
+      // 1. Fetch profile to get dataset dimensions and column profile metrics
       const prof = await getDatasetProfile(dataset.id, dataset.current_version_id);
       setProfile(prof);
 
@@ -70,6 +73,12 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const findingCounts = summary?.finding_counts || { high: 0, medium: 0, low: 0 };
   const score = audit?.score !== null && audit?.score !== undefined ? audit.score : null;
 
+  const datasetMetrics = profile?.dataset_metrics || {};
+  const missingCells = datasetMetrics.missing_cells ?? 0;
+  const missingPct = datasetMetrics.missing_percentage ?? 0.0;
+  const duplicateRows = datasetMetrics.duplicate_rows ?? 0;
+  const duplicatePct = datasetMetrics.duplicate_percentage ?? 0.0;
+
   // Filter findings
   const filteredFindings = findings.filter((f) => {
     if (severityFilter !== 'all' && f.severity.toLowerCase() !== severityFilter.toLowerCase()) {
@@ -98,6 +107,11 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
     return 'score-poor';
   };
 
+  const handleFilterByColumnFromTable = (colName) => {
+    setColumnFilter(colName);
+    setActiveTab('findings');
+  };
+
   return (
     <div style={{ animation: 'fadeIn 0.2s ease-in' }}>
       {/* Header bar */}
@@ -110,14 +124,14 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
             <h1 style={{ fontSize: '1.4rem', fontWeight: 700 }}>Audit Report: {dataset.name}</h1>
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Original file: <code>{dataset.original_filename}</code> &bull; Rows: {dataset.row_count.toLocaleString()} &bull; Columns: {dataset.column_count}
+            Original file: <code>{dataset.original_filename}</code> &bull; Rows: {dataset.row_count.toLocaleString()} &bull; Columns: {dataset.column_count} &bull; Current Version: v1
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {onSwitchToProfile && (
             <button className="btn btn-outline" onClick={onSwitchToProfile} style={{ fontSize: '0.85rem' }}>
-              Detailed Profile
+              Full Profile Explorer
             </button>
           )}
           {onSwitchToPreview && (
@@ -141,7 +155,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
             Auditing dataset deterministically...
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-light)', marginTop: '0.5rem' }}>
-            Running 8 quality checks (missingness, duplicates, constant columns, IQR outliers, type consistency, and class imbalance).
+            Running 8 deterministic quality checks (missingness, duplicates, constant columns, IQR outliers, type consistency, and class imbalance).
           </p>
         </div>
       ) : (
@@ -225,10 +239,11 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
                 </p>
 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                  <label htmlFor="target-col-select" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                     Target Column (Optional)
                   </label>
                   <select
+                    id="target-col-select"
                     value={targetColumn}
                     onChange={(e) => setTargetColumn(e.target.value)}
                     style={{ width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
@@ -259,194 +274,327 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
             </div>
           </div>
 
-          {/* Finding KPI Badges */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          {/* Finding & Metric KPI Summary Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
             <div className="card" style={{ padding: '1rem', textAlign: 'center', marginBottom: 0 }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL FINDINGS</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>TOTAL FINDINGS</div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>{findings.length}</div>
             </div>
             <div className="card" style={{ padding: '1rem', textAlign: 'center', marginBottom: 0, borderLeft: '4px solid var(--danger)' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--danger)', fontWeight: 600 }}>HIGH SEVERITY</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--danger)', fontWeight: 600 }}>HIGH SEVERITY</div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--danger)' }}>
                 {findingCounts.high || 0}
               </div>
             </div>
             <div className="card" style={{ padding: '1rem', textAlign: 'center', marginBottom: 0, borderLeft: '4px solid var(--warning)' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--warning)', fontWeight: 600 }}>MEDIUM SEVERITY</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 600 }}>MEDIUM SEVERITY</div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--warning)' }}>
                 {findingCounts.medium || 0}
               </div>
             </div>
             <div className="card" style={{ padding: '1rem', textAlign: 'center', marginBottom: 0, borderLeft: '4px solid var(--primary)' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>LOW SEVERITY</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}>LOW SEVERITY</div>
               <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--primary)' }}>
                 {findingCounts.low || 0}
               </div>
             </div>
-          </div>
-
-          {/* Findings Filter Bar */}
-          <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1rem' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-                {/* Severity Filter */}
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.4rem' }}>Severity:</span>
-                  <select
-                    value={severityFilter}
-                    onChange={(e) => setSeverityFilter(e.target.value)}
-                    style={{ padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
-                  >
-                    <option value="all">All Severities</option>
-                    <option value="high">High ({findingCounts.high || 0})</option>
-                    <option value="medium">Medium ({findingCounts.medium || 0})</option>
-                    <option value="low">Low ({findingCounts.low || 0})</option>
-                  </select>
-                </div>
-
-                {/* Rule Filter */}
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.4rem' }}>Rule:</span>
-                  <select
-                    value={ruleFilter}
-                    onChange={(e) => setRuleFilter(e.target.value)}
-                    style={{ padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
-                  >
-                    <option value="all">All Rules</option>
-                    <option value="rule_missing_values">Missing Values</option>
-                    <option value="rule_exact_duplicates">Exact Duplicates</option>
-                    <option value="rule_constant_columns">Constant Columns</option>
-                    <option value="rule_high_cardinality">High Cardinality</option>
-                    <option value="rule_numeric_outliers">Numeric Outliers</option>
-                    <option value="rule_type_consistency">Type Consistency</option>
-                    <option value="rule_class_imbalance">Class Imbalance</option>
-                    <option value="rule_potential_leakage">Potential Leakage</option>
-                  </select>
-                </div>
-
-                {/* Column Filter */}
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.4rem' }}>Column:</span>
-                  <select
-                    value={columnFilter}
-                    onChange={(e) => setColumnFilter(e.target.value)}
-                    style={{ padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
-                  >
-                    <option value="all">All Columns</option>
-                    {profile?.columns?.map((c) => (
-                      <option key={c.name} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="card" style={{ padding: '1rem', textAlign: 'center', marginBottom: 0 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>MISSING CELLS</div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>
+                {missingPct.toFixed(1)}%
               </div>
-
-              {/* Search Query */}
-              <div style={{ flex: '1', minWidth: '200px', maxWidth: '320px' }}>
-                <input
-                  type="text"
-                  placeholder="Search findings..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ width: '100%', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
-                />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {missingCells.toLocaleString()} cells
+              </div>
+            </div>
+            <div className="card" style={{ padding: '1rem', textAlign: 'center', marginBottom: 0 }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DUPLICATE ROWS</div>
+              <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: '0.2rem' }}>
+                {duplicateRows.toLocaleString()}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {duplicatePct.toFixed(1)}% of rows
               </div>
             </div>
           </div>
 
-          {/* Findings List */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                Audited Findings ({filteredFindings.length} of {findings.length})
-              </h2>
-              {(severityFilter !== 'all' || ruleFilter !== 'all' || columnFilter !== 'all' || searchQuery) && (
-                <button
-                  className="btn btn-outline"
-                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
-                  onClick={() => {
-                    setSeverityFilter('all');
-                    setRuleFilter('all');
-                    setColumnFilter('all');
-                    setSearchQuery('');
-                  }}
-                >
-                  Clear Filters
-                </button>
-              )}
-            </div>
+          {/* Section Tabs */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+            <button
+              className={`btn ${activeTab === 'findings' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setActiveTab('findings')}
+            >
+              Audit Findings ({filteredFindings.length})
+            </button>
+            <button
+              className={`btn ${activeTab === 'columns' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setActiveTab('columns')}
+            >
+              Column Profile Table ({profile?.columns?.length || 0})
+            </button>
+          </div>
 
-            {filteredFindings.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
-                {findings.length === 0 ? (
-                  <div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--success)' }}>
-                      No quality issues detected!
+          {activeTab === 'findings' && (
+            <>
+              {/* Findings Filter Bar */}
+              <div className="card" style={{ padding: '1rem 1.25rem', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+                    {/* Severity Filter */}
+                    <div>
+                      <label htmlFor="filter-severity" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.4rem' }}>
+                        Severity:
+                      </label>
+                      <select
+                        id="filter-severity"
+                        value={severityFilter}
+                        onChange={(e) => setSeverityFilter(e.target.value)}
+                        style={{ padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
+                      >
+                        <option value="all">All Severities</option>
+                        <option value="high">High ({findingCounts.high || 0})</option>
+                        <option value="medium">Medium ({findingCounts.medium || 0})</option>
+                        <option value="low">Low ({findingCounts.low || 0})</option>
+                      </select>
                     </div>
-                    <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                      All deterministic audit rules evaluated cleanly against this dataset version.
-                    </p>
+
+                    {/* Rule Filter */}
+                    <div>
+                      <label htmlFor="filter-rule" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.4rem' }}>
+                        Rule:
+                      </label>
+                      <select
+                        id="filter-rule"
+                        value={ruleFilter}
+                        onChange={(e) => setRuleFilter(e.target.value)}
+                        style={{ padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
+                      >
+                        <option value="all">All Rules</option>
+                        <option value="rule_missing_values">Missing Values</option>
+                        <option value="rule_exact_duplicates">Exact Duplicates</option>
+                        <option value="rule_constant_columns">Constant Columns</option>
+                        <option value="rule_high_cardinality">High Cardinality</option>
+                        <option value="rule_numeric_outliers">Numeric Outliers</option>
+                        <option value="rule_type_consistency">Type Consistency</option>
+                        <option value="rule_class_imbalance">Class Imbalance</option>
+                        <option value="rule_potential_leakage">Potential Leakage</option>
+                      </select>
+                    </div>
+
+                    {/* Column Filter */}
+                    <div>
+                      <label htmlFor="filter-column" style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: '0.4rem' }}>
+                        Column:
+                      </label>
+                      <select
+                        id="filter-column"
+                        value={columnFilter}
+                        onChange={(e) => setColumnFilter(e.target.value)}
+                        style={{ padding: '0.35rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
+                      >
+                        <option value="all">All Columns</option>
+                        {profile?.columns?.map((c) => (
+                          <option key={c.name} value={c.name}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Search Query */}
+                  <div style={{ flex: '1', minWidth: '200px', maxWidth: '320px' }}>
+                    <input
+                      type="text"
+                      placeholder="Search findings..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      aria-label="Search findings by keyword"
+                      style={{ width: '100%', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Findings List */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                    Audited Findings ({filteredFindings.length} of {findings.length})
+                  </h2>
+                  {(severityFilter !== 'all' || ruleFilter !== 'all' || columnFilter !== 'all' || searchQuery) && (
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                      onClick={() => {
+                        setSeverityFilter('all');
+                        setRuleFilter('all');
+                        setColumnFilter('all');
+                        setSearchQuery('');
+                      }}
+                    >
+                      Clear Filters
+                    </button>
+                  )}
+                </div>
+
+                {filteredFindings.length === 0 ? (
+                  <div className="card" style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)' }}>
+                    {findings.length === 0 ? (
+                      <div>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--success)' }}>
+                          No quality issues detected!
+                        </div>
+                        <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                          All deterministic audit rules evaluated cleanly against this dataset version.
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: '1rem', fontWeight: 600 }}>No findings match your filter criteria</div>
+                        <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>
+                          Try selecting &quot;All Severities&quot; or clearing your search term.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
-                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>No findings match your filter criteria</div>
-                    <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>
-                      Try selecting &quot;All Severities&quot; or clearing your search term.
-                    </p>
+                    {filteredFindings.map((finding) => (
+                      <div
+                        key={finding.id}
+                        className={`finding-card severity-${finding.severity.toLowerCase()}`}
+                        onClick={() => setSelectedFinding(finding)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setSelectedFinding(finding);
+                          }
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+                              <span
+                                className={`badge ${
+                                  finding.severity === 'high'
+                                    ? 'badge-high'
+                                    : finding.severity === 'medium'
+                                    ? 'badge-medium'
+                                    : 'badge-low'
+                                }`}
+                              >
+                                {finding.severity.toUpperCase()}
+                              </span>
+                              {finding.column_name && (
+                                <span style={{ fontSize: '0.8rem', fontWeight: 600, background: '#f1f5f9', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
+                                  Column: <code>{finding.column_name}</code>
+                                </span>
+                              )}
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Rule: {finding.rule_id}
+                              </span>
+                            </div>
+                            <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                              {finding.title}
+                            </h3>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '0.5rem' }}>
+                              {finding.description}
+                            </p>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500 }}>
+                              &rarr; {finding.recommendation}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            Inspect &rarr;
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-            ) : (
-              <div>
-                {filteredFindings.map((finding) => (
-                  <div
-                    key={finding.id}
-                    className={`finding-card severity-${finding.severity.toLowerCase()}`}
-                    onClick={() => setSelectedFinding(finding)}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
-                          <span
-                            className={`badge ${
-                              finding.severity === 'high'
-                                ? 'badge-high'
-                                : finding.severity === 'medium'
-                                ? 'badge-medium'
-                                : 'badge-low'
-                            }`}
-                          >
-                            {finding.severity.toUpperCase()}
-                          </span>
-                          {finding.column_name && (
-                            <span style={{ fontSize: '0.8rem', fontWeight: 600, background: '#f1f5f9', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>
-                              Column: <code>{finding.column_name}</code>
+            </>
+          )}
+
+          {activeTab === 'columns' && (
+            <div className="card" style={{ padding: '1rem 1.25rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
+                Column Profile Table ({profile?.columns?.length || 0} columns)
+              </h2>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--bg-main)' }}>
+                      <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>Column Name</th>
+                      <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>Inferred Type</th>
+                      <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>Missing Cells</th>
+                      <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>Distinct Values</th>
+                      <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>Associated Findings</th>
+                      <th style={{ padding: '0.65rem 0.75rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profile?.columns?.map((col) => {
+                      const colFindings = findings.filter((f) => f.column_name === col.name);
+                      const hasHigh = colFindings.some((f) => f.severity === 'high');
+                      const hasMed = colFindings.some((f) => f.severity === 'medium');
+
+                      return (
+                        <tr key={col.name} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>
+                            <code>{col.name}</code>
+                          </td>
+                          <td style={{ padding: '0.65rem 0.75rem' }}>
+                            <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                              {col.inferred_type}
                             </span>
-                          )}
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            Rule: {finding.rule_id}
-                          </span>
-                        </div>
-                        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-                          {finding.title}
-                        </h3>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: '0.5rem' }}>
-                          {finding.description}
-                        </p>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 500 }}>
-                          &rarr; {finding.recommendation}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        Inspect &rarr;
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                          </td>
+                          <td style={{ padding: '0.65rem 0.75rem' }}>
+                            {col.null_count > 0 ? (
+                              <span style={{ color: col.null_percentage >= 20 ? 'var(--danger)' : 'var(--warning)', fontWeight: 600 }}>
+                                {col.null_count} ({col.null_percentage}%)
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--success)', fontWeight: 500 }}>0 (0%)</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '0.65rem 0.75rem' }}>
+                            {col.distinct_count.toLocaleString()}
+                          </td>
+                          <td style={{ padding: '0.65rem 0.75rem' }}>
+                            {colFindings.length > 0 ? (
+                              <span className={`badge ${hasHigh ? 'badge-high' : hasMed ? 'badge-medium' : 'badge-low'}`}>
+                                {colFindings.length} {colFindings.length === 1 ? 'issue' : 'issues'}
+                              </span>
+                            ) : (
+                              <span className="badge badge-success">Clean</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '0.65rem 0.75rem', textAlign: 'right' }}>
+                            {colFindings.length > 0 ? (
+                              <button
+                                className="btn btn-outline"
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                onClick={() => handleFilterByColumnFromTable(col.name)}
+                              >
+                                View Issues &rarr;
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No issues</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
 
