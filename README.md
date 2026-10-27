@@ -82,7 +82,7 @@ flowchart TD
 - **Backend**: Python 3.10+ (tested on Python 3.14 / Arch Linux), FastAPI, Uvicorn, Pydantic v2.
 - **Data Engine**: Pandas and NumPy.
 - **Persistence**: SQLite with SQLAlchemy ORM (`PRAGMA foreign_keys = ON;`) for metadata, version tracking, audit records, and transformation logs.
-- **Testing**: pytest and FastAPI TestClient (96 automated tests passing).
+- **Testing**: pytest and FastAPI TestClient (98 automated tests passing).
 
 ---
 
@@ -168,7 +168,7 @@ Production assets will be output to `frontend/dist/`.
 ### 4. Running the Test Suite
 
 ```bash
-# Run all 96 unit, integration, and E2E tests:
+# Run all 98 unit, integration, and E2E tests:
 .venv/bin/pytest backend/tests -v
 ```
 
@@ -214,7 +214,7 @@ See [`sample_datasets/README.md`](sample_datasets/README.md) for a detailed brea
 
 > [!NOTE]
 > **Deployment Status**: External cloud hosting deployment is **NOT verified** in this repository because remote cloud provider access and credentials (e.g., AWS, GCP, Render, Vercel) are not provided.
-> Local development, backend test execution (88/88 passed), daemonized server execution, and production frontend compilation (`npm run build`) are **100% verified**.
+> Local development, backend test execution (98/98 passed), daemonized server execution, and production frontend compilation (`npm run build`) are **100% verified**.
 
 If you wish to deploy DataLens to a production Linux server or container platform, follow the exact manual steps below.
 

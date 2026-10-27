@@ -1,0 +1,35 @@
+# Git & Version Control
+.git/
+.gitignore
+
+# Python virtual environment & cache
+.venv/
+venv/
+ENV/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+
+# Local database & storage (mounted via volume instead)
+storage/
+*.db
+*.sqlite3
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary & Log files
+*.log
+.DS_Store

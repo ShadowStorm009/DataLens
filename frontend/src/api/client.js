@@ -1,9 +1,32 @@
 // DataLens API Client
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1';
-const HEALTH_URL = (import.meta.env.VITE_API_BASE_URL
-  ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '')
-  : 'http://127.0.0.1:8000') + '/health';
+const API_BASE_URL = (() => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+  if (typeof window !== 'undefined') {
+    // In Vite dev mode (port 5173), default to local backend on 8000
+    if (window.location.port === '5173') {
+      return 'http://127.0.0.1:8000/api/v1';
+    }
+    // In production / Docker / same-origin deployment, use relative origin
+    return `${window.location.origin}/api/v1`;
+  }
+  return 'http://127.0.0.1:8000/api/v1';
+})();
+
+const HEALTH_URL = (() => {
+  if (import.meta.env.VITE_API_BASE_URL) {
+    return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '') + '/health';
+  }
+  if (typeof window !== 'undefined') {
+    if (window.location.port === '5173') {
+      return 'http://127.0.0.1:8000/health';
+    }
+    return `${window.location.origin}/health`;
+  }
+  return 'http://127.0.0.1:8000/health';
+})();
 
 /**
  * Perform a GET request to the backend health endpoint.

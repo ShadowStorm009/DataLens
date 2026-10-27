@@ -5,7 +5,7 @@ from backend.app.core.config import settings
 
 router = APIRouter(tags=["Health"])
 
-@router.get("/health", response_model=HealthResponse)
+@router.api_route("/health", methods=["GET", "HEAD"], response_model=HealthResponse)
 def get_health():
     """Application health check endpoint confirming API readiness."""
     return HealthResponse(

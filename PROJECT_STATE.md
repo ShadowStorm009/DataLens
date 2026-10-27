@@ -13,19 +13,19 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 19:00 IST
+- **Last updated:** 2026-10-27 20:10 IST
 - **Branch:** `main`
-- **HEAD commit:** `26e0cb3`
-- **Git status:** Clean build, 96 automated pytest tests passing in 2.97s, 0 frontend build errors.
+- **HEAD commit:** `8183807`
+- **Git status:** Clean build, 98 automated pytest tests passing in 3.04s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
-- **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
-- **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
+- **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, export endpoints, and production SPA serving)
+- **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced and auto-creating parent directories.
 - **Upload/storage directory:** `./storage` (git-ignored, versioned dataset storage, managed via `StorageService`)
 - **Frontend run command:** `cd frontend && npm run dev`
 - **Backend run command:** `.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload`
-- **Test commands:** `.venv/bin/pytest -v` (backend) and `cd frontend && npm run build` (frontend)
+- **Test commands:** `.venv/bin/pytest -v` (backend, 98/98 passed) and `cd frontend && npm run build` (frontend, 0 errors)
 - **Environment variable names:** `DATALENS_ENV`, `DATALENS_HOST`, `DATALENS_PORT`, `DATABASE_URL`, `STORAGE_DIR`, `MAX_UPLOAD_SIZE_BYTES`, `CORS_ORIGINS`, `VITE_API_BASE_URL`
-- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint, production Vite frontend build, and all 96 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
+- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint (GET + HEAD 200 OK), production Vite frontend build, same-origin SPA static serving, Dockerfile, docker-compose.yml, and all 98 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
 - **Important architecture notes:** Arch Linux host requires Python installations in `.venv/`. Core audit and cleaning logic remains deterministic without external LLM dependencies.
 
 ## 3. Feature Status Matrix
@@ -554,6 +554,42 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
     - HTTP endpoint verification for version route, active version route, and 404 handling.
   - **All 96 backend tests passing** in 2.97s.
   - **Vite production build passing** cleanly with 0 errors in 924ms.
+
+### Phase 11 — Deployment Hardening, Same-Origin SPA Serving & Production Verification
+- **Goal:** Harden the application for single-container and VPS deployments with zero-configuration same-origin asset serving, directory auto-initialization, wildcard credential safety, and automated health probing.
+- **Components & Fixes Implemented:**
+  1. **Same-Origin Static Asset Serving in FastAPI (`backend/app/main.py`):**
+     - Dynamically locates `frontend/dist` across standard deployment paths (repo root, cwd, or `/app/frontend/dist`).
+     - Mounts `StaticFiles` on `/assets`.
+     - Adds catch-all `@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])` serving `index.html` while strictly excluding `/api/*`, `/health`, `/docs`, `/redoc`, and `/openapi.json`.
+     - Implements canonical Python `relative_to` path traversal defense against directory-climbing attempts.
+  2. **Health Check Probing Support (`backend/app/api/routes/health.py` & `main.py`):**
+     - Extended `/health` and SPA root to accept both `GET` and `HEAD` HTTP methods (`HTTP 200 OK`).
+     - Eliminates `405 Method Not Allowed` failures from AWS ALB, Docker, Kubernetes liveness/readiness probes, and uptime pingers.
+  3. **SQLite Directory Auto-Creation (`backend/app/db/session.py`):**
+     - Resolves parent directory of `DATABASE_URL` SQLite path and ensures `mkdir(parents=True, exist_ok=True)` before engine creation.
+     - Prevents `sqlite3.OperationalError: unable to open database file` on fresh persistent Docker volumes and VPS mounts.
+  4. **CORS Credential Wildcard Safeguard (`backend/app/main.py`):**
+     - Added `allow_creds = "*" not in settings.CORS_ORIGINS` to eliminate Starlette runtime exceptions if `CORS_ORIGINS=*` is set in production environments.
+  5. **Dynamic Production Base URL Resolution (`frontend/src/api/client.js`):**
+     - Detects client location; if running on standard Vite port (`5173`), routes to `http://127.0.0.1:8000/api/v1`.
+     - In containerized single-origin deployment or behind reverse proxy, dynamically defaults to `${window.location.origin}/api/v1`.
+  6. **Docker Build Optimization (`.dockerignore`):**
+     - Created comprehensive `.dockerignore` excluding `.venv/`, `node_modules/`, `storage/`, `.git/`, and test caches from container image layers.
+- **Automated Verification:**
+  - Added `test_head_health_check` and `test_spa_serving_and_head` in `backend/tests/test_health.py`.
+  - **All 98 backend tests passing** in 3.04s.
+  - Production Vite frontend build passing cleanly in 928ms (`dist/index.html` 0.66 kB, CSS 5.48 kB, JS 363.51 kB).
+  - Executed end-to-end Python smoke test against live server on port 8000:
+    - `GET /health` & `HEAD /health` (200 OK)
+    - `GET /` & `HEAD /` (200 OK)
+    - CSV dataset upload (`POST /api/v1/datasets`)
+    - Audit execution (`POST /api/v1/datasets/{id}/audits`)
+    - CSV export (`GET /api/v1/datasets/{id}/export`)
+    - HTML audit report export (`GET /api/v1/datasets/{id}/report?format=html`)
+    - Colab notebook export (`GET /api/v1/datasets/{id}/colab-notebook`)
+    - Cascade deletion cleanup (`DELETE /api/v1/datasets/{id}`)
+
 
 
 

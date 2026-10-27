@@ -8,6 +8,12 @@ from backend.app.db.base import Base
 # Configure SQLite engine with foreign key enforcement
 connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
 
+if settings.DATABASE_URL.startswith("sqlite"):
+    clean_path = settings.DATABASE_URL.replace("sqlite:///", "").split("?")[0]
+    if clean_path and clean_path != ":memory:":
+        from pathlib import Path
+        Path(clean_path).resolve().parent.mkdir(parents=True, exist_ok=True)
+
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,
