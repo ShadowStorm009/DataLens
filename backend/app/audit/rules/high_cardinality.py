@@ -54,6 +54,18 @@ class HighCardinalityRule(AuditRule):
                 # Heuristic: > threshold unique values and at least min_distinct_count values
                 if cardinality_ratio >= self.cardinality_ratio_threshold and distinct_count >= self.min_distinct_count:
                     is_exact_unique = (distinct_count == non_null_count)
+
+                    # Continuous numeric measurements (such as float exam marks, temperatures, salaries)
+                    # naturally have high unique value counts. High cardinality as an identifier heuristic
+                    # applies to text/categorical features or discrete identifier columns, not continuous numbers.
+                    if pd.api.types.is_float_dtype(non_null_series):
+                        continue
+                    if pd.api.types.is_integer_dtype(non_null_series) and not is_exact_unique:
+                        col_lower = str(col).lower()
+                        is_id_name = any(col_lower.endswith(sfx) for sfx in ("_id", "id", "_key", "key", "_code", "code")) or col_lower in ("id", "key", "index", "pk")
+                        if not is_id_name:
+                            continue
+
                     severity = "medium" if is_exact_unique else "low"
 
                     title = (

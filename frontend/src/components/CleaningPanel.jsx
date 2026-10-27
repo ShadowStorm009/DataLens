@@ -1,14 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { previewTransformation, applyTransformation } from '../api/client';
 
-export default function CleaningPanel({ dataset, profile, onTransformationApplied, onClose }) {
-  const [operationType, setOperationType] = useState('impute_median');
-  const [selectedColumn, setSelectedColumn] = useState('');
+export default function CleaningPanel({
+  dataset,
+  profile,
+  onTransformationApplied,
+  onClose,
+  initialOperation = 'impute_median',
+  initialColumn = '',
+}) {
+  const [operationType, setOperationType] = useState(initialOperation || 'impute_median');
+  const [selectedColumn, setSelectedColumn] = useState(initialColumn || '');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [error, setError] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [confirmApply, setConfirmApply] = useState(false);
+
+  useEffect(() => {
+    if (initialOperation) setOperationType(initialOperation);
+    if (initialColumn !== undefined) setSelectedColumn(initialColumn);
+    setPreviewData(null);
+    setError(null);
+  }, [initialOperation, initialColumn]);
 
   const columns = profile?.columns || [];
   const numericColumns = columns.filter((c) => c.inferred_type === 'numeric');
