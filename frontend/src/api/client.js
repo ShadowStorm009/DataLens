@@ -332,6 +332,35 @@ export async function downloadFileFromUrl(url, defaultFilename = 'datalens_downl
   setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
 }
 
+/**
+ * Retrieve the latest audit run for a list of dataset IDs in parallel.
+ * Returns a map of datasetId -> { score, auditedAt, auditId } or null.
+ */
+export async function getLatestAuditsForDatasets(datasetIds) {
+  if (!datasetIds || datasetIds.length === 0) return {};
+  const auditMap = {};
+  await Promise.all(
+    datasetIds.map(async (id) => {
+      try {
+        const res = await listAudits(id);
+        if (res.audits && res.audits.length > 0) {
+          const latest = res.audits[0];
+          auditMap[id] = {
+            score: latest.score,
+            auditedAt: latest.created_at,
+            auditId: latest.id,
+          };
+        } else {
+          auditMap[id] = null;
+        }
+      } catch (_) {
+        auditMap[id] = null;
+      }
+    })
+  );
+  return auditMap;
+}
+
 export { API_BASE_URL, HEALTH_URL };
 
 
