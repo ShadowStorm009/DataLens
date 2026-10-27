@@ -12,7 +12,7 @@
 ### 📺 Project Demo Video & Presentation Link
 > [!IMPORTANT]
 > **Submission Video & Artifacts**:  
-> **Google Drive Link:** [https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE](https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE?usp=sharing)  
+> **Google Drive Link:** [[https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE](https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE?usp=sharing) ](https://drive.google.com/file/d/1RSmpyAertIhMh2QoJ-PWubsT0R3P-lqM/view?usp=sharing) 
 > **Live Working Link :** https://data-lens-pi-two.vercel.app
 
 ---
