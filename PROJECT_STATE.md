@@ -13,9 +13,9 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 10:35 IST
+- **Last updated:** 2026-10-27 10:38 IST
 - **Branch:** `main`
-- **HEAD commit:** `994dd39` (docs: update project state with reliability pass status)
+- **HEAD commit:** `bcc37e7` (Reliability pass: in-app deletion modal, uniform error envelopes, rollback cleanup, submission guards)
 - **Git status:** Clean build, 87 automated pytest tests passing in 2.46s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
