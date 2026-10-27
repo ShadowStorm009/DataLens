@@ -265,23 +265,51 @@ export function getExportCsvUrl(datasetId, versionId = null, spreadsheetSafe = f
 /**
  * Generate Audit Report download URL
  */
-export function getExportReportUrl(datasetId, auditId = null, format = 'html') {
-  let url = auditId
-    ? `${API_BASE_URL}/datasets/${datasetId}/audits/${auditId}/report?format=${format}`
-    : `${API_BASE_URL}/datasets/${datasetId}/report?format=${format}`;
-  return url;
+export function getExportReportUrl(datasetId, auditId = null, format = 'html', versionId = null) {
+  if (auditId) {
+    return `${API_BASE_URL}/datasets/${datasetId}/audits/${auditId}/report?format=${format}`;
+  }
+  if (versionId) {
+    return `${API_BASE_URL}/datasets/${datasetId}/versions/${versionId}/report?format=${format}`;
+  }
+  return `${API_BASE_URL}/datasets/${datasetId}/report?format=${format}`;
 }
 
 /**
- * Trigger browser file download from a given URL
+ * Trigger browser file download from a given URL with error catching
  */
-export function downloadFileFromUrl(url) {
+export async function downloadFileFromUrl(url, defaultFilename = 'datalens_download') {
+  const response = await fetch(url);
+  if (!response.ok) {
+    let errMsg = `Download failed with HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      errMsg = errJson.error?.message || errJson.message || errMsg;
+    } catch (e) {
+      // Non-JSON response
+    }
+    throw new Error(errMsg);
+  }
+
+  // Attempt to parse filename from Content-Disposition header
+  let filename = defaultFilename;
+  const disposition = response.headers.get('Content-Disposition');
+  if (disposition && disposition.includes('filename=')) {
+    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+    if (match && match[1]) {
+      filename = match[1].replace(/['"]/g, '').trim();
+    }
+  }
+
+  const blob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', '');
+  link.href = objectUrl;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
 }
 
 export { API_BASE_URL, HEALTH_URL };

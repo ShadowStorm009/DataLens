@@ -24,6 +24,21 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const [showCleaningPanel, setShowCleaningPanel] = useState(false);
   const [transformationSuccess, setTransformationSuccess] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [exportError, setExportError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleDownload = async (url) => {
+    setExporting(true);
+    setExportError(null);
+    setShowExportMenu(false);
+    try {
+      await downloadFileFromUrl(url);
+    } catch (err) {
+      setExportError(err.message || 'Export failed. Please check the requested file and try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Tab: 'findings' or 'columns'
   const [activeTab, setActiveTab] = useState('findings');
@@ -108,6 +123,10 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const missingPct = datasetMetrics.missing_percentage ?? 0.0;
   const duplicateRows = datasetMetrics.duplicate_rows ?? 0;
   const duplicatePct = datasetMetrics.duplicate_percentage ?? 0.0;
+
+  const activeVerId = selectedVersionId || dataset.current_version_id;
+  const activeVerObj = versions.find((v) => v.id === activeVerId);
+  const currentVerNum = activeVerObj?.version_number || 1;
 
   // Filter findings
   const filteredFindings = findings.filter((f) => {
@@ -247,22 +266,20 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', marginBottom: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => {
-                    downloadFileFromUrl(getExportCsvUrl(dataset.id, dataset.current_version_id, false));
-                    setShowExportMenu(false);
-                  }}
+                  onClick={() => handleDownload(getExportCsvUrl(dataset.id, activeVerId, false))}
+                  disabled={exporting}
+                  title={`Export Version ${currentVerNum} as standard CSV`}
                 >
-                  📄 Standard CSV
+                  📄 Standard CSV (v{currentVerNum})
                 </button>
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', marginBottom: '0.75rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => {
-                    downloadFileFromUrl(getExportCsvUrl(dataset.id, dataset.current_version_id, true));
-                    setShowExportMenu(false);
-                  }}
+                  onClick={() => handleDownload(getExportCsvUrl(dataset.id, activeVerId, true))}
+                  disabled={exporting}
+                  title={`Export Version ${currentVerNum} with spreadsheet formula injection protection`}
                 >
-                  🛡️ Spreadsheet-Safe CSV
+                  🛡️ Spreadsheet-Safe CSV (v{currentVerNum})
                 </button>
 
                 <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem', textTransform: 'uppercase', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
@@ -271,22 +288,18 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', marginBottom: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => {
-                    downloadFileFromUrl(getExportReportUrl(dataset.id, audit?.id, 'html'));
-                    setShowExportMenu(false);
-                  }}
-                  disabled={!audit}
+                  onClick={() => handleDownload(getExportReportUrl(dataset.id, audit?.id, 'html', activeVerId))}
+                  disabled={!audit || exporting}
+                  title="Download standalone HTML audit report"
                 >
                   📊 Standalone HTML Report
                 </button>
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => {
-                    downloadFileFromUrl(getExportReportUrl(dataset.id, audit?.id, 'json'));
-                    setShowExportMenu(false);
-                  }}
-                  disabled={!audit}
+                  onClick={() => handleDownload(getExportReportUrl(dataset.id, audit?.id, 'json', activeVerId))}
+                  disabled={!audit || exporting}
+                  title="Download machine-readable JSON audit report"
                 >
                   ⚙️ Machine JSON Report
                 </button>
@@ -295,6 +308,17 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
           </div>
         </div>
       </div>
+
+      {exportError && (
+        <div style={{ padding: '0.85rem 1.25rem', background: 'var(--danger-bg)', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', animation: 'fadeIn 0.2s ease-in' }}>
+          <div>
+            <strong>Export Error:</strong> {exportError}
+          </div>
+          <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }} onClick={() => setExportError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {transformationSuccess && (
         <div style={{ padding: '0.85rem 1.25rem', background: 'var(--success-bg)', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', color: 'var(--success)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', animation: 'fadeIn 0.2s ease-in' }}>

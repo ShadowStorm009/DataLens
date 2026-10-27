@@ -195,7 +195,13 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
           </button>
           <button
             className="btn btn-outline"
-            onClick={() => downloadFileFromUrl(getExportCsvUrl(datasetId, v2Id, false))}
+            onClick={async () => {
+              try {
+                await downloadFileFromUrl(getExportCsvUrl(datasetId, v2Id, false));
+              } catch (err) {
+                setError(err.message || 'Failed to download comparison CSV');
+              }
+            }}
             disabled={!v2Id || comparing}
             style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
             title="Download CSV for Version 2"

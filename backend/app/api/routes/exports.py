@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -85,7 +86,7 @@ def export_audit_report(
         v_num = report_data["version"]["version_number"]
         filename = f"{dataset_name}_v{v_num}_audit_report.json"
         return JSONResponse(
-            content=report_data,
+            content=jsonable_encoder(report_data),
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
@@ -99,6 +100,37 @@ def export_audit_report(
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
         )
+
+@router.get(
+    "/versions/{version_id}/report",
+    summary="Export latest audit report for a specific dataset version",
+)
+def export_version_audit_report(
+    dataset_id: str,
+    version_id: str,
+    format: str = Query("html", description="Report format: 'html' or 'json'"),
+    db: Session = Depends(get_db),
+):
+    """Export the report for the latest completed audit on a specific version."""
+    version = dataset_service.get_version(db, version_id)
+    if version.dataset_id != dataset_id:
+        raise ResourceNotFoundError(f"Version '{version_id}' does not belong to dataset '{dataset_id}'")
+
+    latest_audit = (
+        db.query(AuditRun)
+        .filter(AuditRun.dataset_id == dataset_id, AuditRun.version_id == version_id, AuditRun.status == "completed")
+        .order_by(AuditRun.created_at.desc())
+        .first()
+    )
+    if not latest_audit:
+        raise ResourceNotFoundError(f"No completed audit runs found for version '{version_id}'")
+
+    return export_audit_report(
+        dataset_id=dataset_id,
+        audit_id=latest_audit.id,
+        format=format,
+        db=db,
+    )
 
 @router.get(
     "/report",

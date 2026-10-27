@@ -3,6 +3,7 @@ import { getExportCsvUrl, downloadFileFromUrl } from '../api/client';
 
 export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh, onViewProfile, onViewAudit, onCompare }) {
   const [deletingId, setDeletingId] = useState(null);
+  const [exportError, setExportError] = useState(null);
 
   const handleDelete = async (dataset) => {
     if (window.confirm(`Are you sure you want to permanently delete dataset "${dataset.name}" and all its versions?`)) {
@@ -28,6 +29,13 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
           {loading ? 'Refreshing...' : 'Refresh'}
         </button>
       </div>
+
+      {exportError && (
+        <div style={{ padding: '0.75rem 1rem', background: 'var(--danger-bg)', border: '1px solid #fecaca', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div><strong>Export Error:</strong> {exportError}</div>
+          <button className="btn btn-outline" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }} onClick={() => setExportError(null)}>Dismiss</button>
+        </div>
+      )}
 
       {loading && datasets.length === 0 && (
         <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -114,7 +122,14 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
                       <button
                         className="btn btn-outline"
                         style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
-                        onClick={() => downloadFileFromUrl(getExportCsvUrl(ds.id, ds.current_version_id, false))}
+                        onClick={async () => {
+                          setExportError(null);
+                          try {
+                            await downloadFileFromUrl(getExportCsvUrl(ds.id, ds.current_version_id, false));
+                          } catch (err) {
+                            setExportError(err.message || 'Failed to download dataset CSV');
+                          }
+                        }}
                         title="Export current CSV version"
                       >
                         Export CSV

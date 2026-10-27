@@ -13,10 +13,10 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 09:55 IST
+- **Last updated:** 2026-10-27 10:10 IST
 - **Branch:** `main`
-- **HEAD commit:** `5d956f0` (Version tracking & comparisons updated)
-- **Git status:** Clean build, 77 automated pytest tests passing in 2.12s, 0 frontend build errors.
+- **HEAD commit:** `8d8b505` (Docs: sync canonical handoff commit hash)
+- **Git status:** Clean build, 82 automated pytest tests passing in 2.39s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
@@ -25,7 +25,7 @@
 - **Backend run command:** `.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload`
 - **Test commands:** `.venv/bin/pytest -v` (backend) and `cd frontend && npm run build` (frontend)
 - **Environment variable names:** `DATALENS_ENV`, `DATALENS_HOST`, `DATALENS_PORT`, `DATABASE_URL`, `STORAGE_DIR`, `MAX_UPLOAD_SIZE_BYTES`, `CORS_ORIGINS`, `VITE_API_BASE_URL`
-- **Deployment URL/status:** Local persistence, upload, preview, profiling, deterministic audit rules, interactive audit dashboard, cleaning transformations, comparison view, CSV/HTML/JSON reports, and E2E lifecycle verified.
+- **Deployment URL/status:** Local persistence, upload, preview, profiling, deterministic audit rules, interactive audit dashboard, cleaning transformations, comparison view, versioned CSV exports, Before/After audit reports (HTML/JSON), and E2E lifecycle verified.
 - **Important architecture notes:** Arch Linux host requires Python installations in `.venv/`. Core audit and cleaning logic remains deterministic without external LLM dependencies.
 
 ## 3. Feature Status Matrix
@@ -43,9 +43,9 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Cleaning preview** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Non-mutating preview API & UI for median/mode imputation, duplicate removal, constant column drop; returns bounded sample diffs, row/cell deltas without modifying stored data | None | `backend/tests/test_transformations.py` 12 passed (median, mode, duplicate, constant col, immutability, preview/apply parity) |
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Applying calls same transformation engine; persists new immutable `DatasetVersion` (v2, v3, etc.); records `Transformation` history row with parameters and metrics; auto-triggers re-audit in dashboard | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
-| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Version-specific CSV download; formula injection prevention (`safe_mode=true` prepending `'`); standalone self-contained HTML audit report; structured machine-readable JSON report; direct UI export triggers | None | `backend/tests/test_export.py` 6 passed |
+| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Selected-version CSV export (not implicitly latest); safe generated filenames; formula injection protection with safe numeric string preservation; empty version handling; before/after comparison in HTML/JSON reports for child versions; version report endpoint; visible download failure handling | None | `backend/tests/test_export.py` 11 passed |
 | **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/tests/test_reliability.py` | DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; consistent 404/422 error envelopes; path traversal attacks strictly blocked; partial transformation failures rolled back safely | None | `backend/tests/test_reliability.py` 5 passed |
-| **Automated tests** | VERIFIED | `backend/tests/` | 77 automated tests covering health, persistence, upload, preview, profiling, 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports, reliability, and full E2E lifecycle | None | 77 passed in 2.12s |
+| **Automated tests** | VERIFIED | `backend/tests/` | 82 automated tests covering health, persistence, upload, preview, profiling, 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports, reliability, and full E2E lifecycle | None | 82 passed in 2.39s |
 | **README & deployment** | VERIFIED | `README.md`, `docs/DECISIONS.md`, `.env.example` | Architecture diagrams, complete local setup instructions, production build instructions, core invariants, and explicit PRD limitations documented | None | Setup and build verified locally |
 | **Demo and final submission checklist** | VERIFIED | `sample_datasets/demo_dirty_dataset.csv`, `sample_datasets/README.md`, `backend/tests/test_e2e_workflow.py` | Reproducible 20-row sample CSV with known defects across all 8 audit rules, walkthrough guide, and automated E2E lifecycle test verifying upload->profile->audit->preview->apply(v2,v3,v4)->compare->export | None | `test_full_datalens_e2e_lifecycle` PASSED |
 
@@ -269,3 +269,35 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
     - `test_comparison_calculations_percentages_and_column_stats`: missing/duplicate percentage deltas, column stats (nulls, distinct, mean), unresolved findings retention.
 - **Tests/results:** 77/77 tests passed in 2.12s; production Vite build passed in 809ms (0 errors).
 - **Next action:** Commit version tracking and comparison improvements.
+
+### 2026-10-27 — Versioned CSV Export and Before/After Audit Report Generator Polish
+- **Goal:** Ensure true version-targeted CSV exports, spreadsheet formula injection protection without corrupting negative numbers, comprehensive Before/After comparisons in HTML/JSON reports, version-specific report routing, and visible frontend error handling.
+- **Changes:**
+  - Enhanced `ExportService.export_csv`:
+    - Reads storage for exact selected `version_id`.
+    - Handles empty dataset versions safely (0 rows).
+    - Preserves valid numeric strings (such as `"-42"` or `"+3.14"`) while escaping formula prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) with single quote `'` in `spreadsheet_safe` mode.
+    - Generates safe filenames (`{safe_name}_v{num}.csv`).
+  - Enhanced `ExportService.generate_json_report`:
+    - Added `before_after_comparison` powered by `ComparisonService.compare_versions` when audit belongs to a child version (`version.parent_version_id`).
+    - Uses `model_dump(mode='json')` and `jsonable_encoder` for strict JSON serializability.
+  - Enhanced `ExportService.generate_html_report`:
+    - Renders responsive Before/After comparison section with baseline vs cleaned score gauges, missing cell & duplicate row deltas, resolved findings checklist with green badges, and new findings warnings.
+    - Added explicit notice when viewing the initial baseline version (v1).
+    - Documented spreadsheet formula injection defense mechanism in the report disclaimer.
+  - Added API endpoint `GET /api/v1/datasets/{id}/versions/{version_id}/report` to export reports by version ID.
+  - Updated `frontend/src/api/client.js`:
+    - Updated `downloadFileFromUrl` to fetch blobs, parse server error envelopes (`err.error.message`), extract filenames from `Content-Disposition`, and throw errors on HTTP failures.
+    - Updated `getExportReportUrl` to support version-targeted reports.
+  - Updated `frontend/src/components/AuditDashboard.jsx`:
+    - Bound Export menu CSV downloads to `activeVerId` (the version currently inspected), displaying dynamic version numbers (`v{currentVerNum}`).
+    - Added visible error banner (`exportError`) with dismiss button.
+  - Updated `frontend/src/components/CompareView.jsx` and `DatasetTable.jsx` to catch export errors and display visible alerts.
+  - Added 5 new tests in `backend/tests/test_export.py`:
+    - `test_export_csv_empty_version`: exports 0-row header CSV properly.
+    - `test_export_csv_selected_version_parity`: verifies v1 export preserves duplicates while v2 export has duplicates removed.
+    - `test_export_csv_formula_injection_distinguishes_negative_numbers`: verifies `"-42"` is preserved while `"=cmd|"` and `"-2+3+cmd"` are escaped.
+    - `test_audit_report_with_before_after_comparison_child_version`: verifies HTML and JSON reports on child versions contain before/after score deltas, metric improvements, and resolved findings.
+    - `test_export_version_report_endpoint`: verifies `GET /versions/{v_id}/report` returns 200 OK with proper headers and contents.
+- **Tests/results:** 82/82 tests passed in 2.39s; production Vite build passed in 762ms (0 errors).
+- **Next action:** Commit export improvements.

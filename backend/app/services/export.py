@@ -16,8 +16,20 @@ from backend.app.core.errors import ResourceNotFoundError
 FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
 
 class ExportService:
-    def __init__(self, ds_service: Optional[DatasetService] = None):
+    def __init__(
+        self,
+        ds_service: Optional[DatasetService] = None,
+        comp_service: Optional[Any] = None,
+    ):
         self.dataset_service = ds_service or dataset_service
+        self._comparison_service = comp_service
+
+    @property
+    def comparison_service(self):
+        if self._comparison_service is None:
+            from backend.app.services.comparison import ComparisonService
+            self._comparison_service = ComparisonService(dataset_service=self.dataset_service)
+        return self._comparison_service
 
     def export_csv(
         self,
@@ -28,6 +40,7 @@ class ExportService:
     ) -> Tuple[str, str]:
         """
         Export a specific dataset version as a CSV string.
+        Optionally sanitizes cells against formula injection for spreadsheet software.
         Returns: (csv_text, filename)
         """
         dataset = self.dataset_service.get_dataset(db, dataset_id)
@@ -36,10 +49,16 @@ class ExportService:
         if version.dataset_id != dataset_id:
             raise ResourceNotFoundError(f"Version '{version_id}' does not belong to dataset '{dataset_id}'")
 
-        df = self.dataset_service.storage.read_dataframe(version.storage_reference)
+        try:
+            df = self.dataset_service.storage.read_dataframe(version.storage_reference)
+        except Exception as e:
+            raise ResourceNotFoundError(f"Underlying storage file for version '{version_id}' could not be read: {str(e)}")
+
+        if df is None:
+            df = pd.DataFrame()
 
         # Apply spreadsheet formula sanitization if requested
-        if spreadsheet_safe:
+        if spreadsheet_safe and not df.empty and len(df.columns) > 0:
             df = self._sanitize_for_spreadsheet(df)
 
         csv_buffer = io.StringIO()
@@ -109,6 +128,23 @@ class ExportService:
                 "created_at": t.created_at.isoformat(),
             })
 
+        # Before/after comparison if available
+        before_after_comparison = None
+        if version.parent_version_id:
+            try:
+                comp_result = self.comparison_service.compare_versions(
+                    db=db,
+                    dataset_id=dataset_id,
+                    v1_id=version.parent_version_id,
+                    v2_id=version.id,
+                )
+                before_after_comparison = comp_result.model_dump(mode="json")
+            except Exception as e:
+                before_after_comparison = {
+                    "available": False,
+                    "reason": f"Unable to generate comparison with parent version '{version.parent_version_id}': {str(e)}",
+                }
+
         return {
             "report_generated_at": datetime.now(timezone.utc).isoformat(),
             "dataset": {
@@ -119,6 +155,7 @@ class ExportService:
             "version": {
                 "id": version.id,
                 "version_number": version.version_number,
+                "parent_version_id": version.parent_version_id,
                 "row_count": version.row_count,
                 "column_count": version.column_count,
                 "created_at": version.created_at.isoformat(),
@@ -134,6 +171,7 @@ class ExportService:
             "findings_count": len(findings_list),
             "findings": findings_list,
             "transformations_applied": transforms_data,
+            "before_after_comparison": before_after_comparison,
             "disclaimer": (
                 "The DataLens Quality Score and findings reflect deterministic heuristic checks only. "
                 "Higher scores denote fewer rule violations, but do not imply ground-truth semantic accuracy."
@@ -179,6 +217,123 @@ class ExportService:
                     <pre style="background: #f1f5f9; padding: 0.5rem; border-radius: 4px; overflow-x: auto;">{evidence_str}</pre>
                 </details>
             </div>
+            """
+
+        # Build Before/After comparison HTML
+        comp_data = report_data.get("before_after_comparison")
+        if comp_data and isinstance(comp_data, dict) and "score_comparison" in comp_data:
+            s_comp = comp_data.get("score_comparison", {})
+            m_comp = comp_data.get("metrics_comparison", {})
+            f_diff = comp_data.get("findings_diff", {})
+            v1_info = comp_data.get("v1", {})
+            parent_v_num = v1_info.get("version_number", "Parent")
+
+            s1 = s_comp.get("score_v1", 0.0)
+            s2 = s_comp.get("score_v2", 0.0)
+            delta = s_comp.get("delta", 0.0)
+            delta_sign = "+" if delta > 0 else ""
+            delta_color = "#16a34a" if delta > 0 else "#ef4444" if delta < 0 else "#64748b"
+
+            missing_item = m_comp.get("missing_cells", {})
+            m1 = missing_item.get("v1", 0)
+            m2 = missing_item.get("v2", 0)
+            m_delta = missing_item.get("delta", 0)
+            m_sign = "+" if m_delta > 0 else ""
+            m_color = "#16a34a" if missing_item.get("improved") else "#64748b" if m_delta == 0 else "#ef4444"
+
+            dup_item = m_comp.get("duplicate_rows", {})
+            d1 = dup_item.get("v1", 0)
+            d2 = dup_item.get("v2", 0)
+            d_delta = dup_item.get("delta", 0)
+            d_sign = "+" if d_delta > 0 else ""
+            d_color = "#16a34a" if dup_item.get("improved") else "#64748b" if d_delta == 0 else "#ef4444"
+
+            resolved = f_diff.get("resolved", [])
+            resolved_html = ""
+            if resolved:
+                for rf in resolved:
+                    col_str = f" (Col: <code>{rf.get('column_name')}</code>)" if rf.get('column_name') else ""
+                    resolved_html += f"""
+                    <li style="margin-bottom: 0.35rem;">
+                        <span class="badge" style="background-color: #10b981; color: #fff;">RESOLVED</span>
+                        <strong>{rf.get('title')}</strong>{col_str}
+                    </li>
+                    """
+            else:
+                resolved_html = "<li style='color: #64748b; font-style: italic;'>No prior findings resolved in this version.</li>"
+
+            new_findings = f_diff.get("new", [])
+            new_html = ""
+            if new_findings:
+                for nf in new_findings:
+                    col_str = f" (Col: <code>{nf.get('column_name')}</code>)" if nf.get('column_name') else ""
+                    new_html += f"""
+                    <li style="margin-bottom: 0.35rem;">
+                        <span class="badge" style="background-color: #f59e0b; color: #fff;">NEW</span>
+                        <strong>{nf.get('title')}</strong>{col_str}
+                    </li>
+                    """
+
+            comparison_html = f"""
+            <div class="section-title">Before / After Version Comparison (vs Baseline v{parent_v_num})</div>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Baseline Score (v{parent_v_num})</div>
+                    <div class="kpi-num">{s1}<span style="font-size: 0.85rem; color: #94a3b8;">/100</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Cleaned Score (v{version_num})</div>
+                    <div class="kpi-num">{s2}<span style="font-size: 0.85rem; color: #94a3b8;">/100</span></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Score Improvement</div>
+                    <div class="kpi-num" style="color: {delta_color};">{delta_sign}{delta:.1f} pts</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Resolved Issues</div>
+                    <div class="kpi-num" style="color: #16a34a;">{len(resolved)}</div>
+                </div>
+            </div>
+
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Baseline (v{parent_v_num})</th>
+                        <th>Cleaned (v{version_num})</th>
+                        <th>Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Missing Cells</td>
+                        <td>{m1:,}</td>
+                        <td>{m2:,}</td>
+                        <td><strong style="color: {m_color};">{m_sign}{m_delta:,}</strong></td>
+                    </tr>
+                    <tr>
+                        <td>Duplicate Rows</td>
+                        <td>{d1:,}</td>
+                        <td>{d2:,}</td>
+                        <td><strong style="color: {d_color};">{d_sign}{d_delta:,}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+                <div style="font-weight: 700; margin-bottom: 0.5rem; font-size: 0.9rem; color: #1e293b;">Findings Status Changes:</div>
+                <ul style="padding-left: 1.25rem; margin: 0; font-size: 0.85rem; list-style-type: none;">
+                    {resolved_html}
+                    {new_html}
+                </ul>
+            </div>
+            """
+        else:
+            comparison_html = f"""
+            <div class="section-title">Before / After Version Comparison</div>
+            <p style="color: #64748b; font-style: italic; background: #f8fafc; padding: 1rem; border-radius: 6px; border: 1px dashed #cbd5e1;">
+                No prior version comparison available for this version. This is the initial upload baseline (v{version_num}). Subsequent cleaned versions will display automated score deltas, metric improvements, and resolved rule violations here.
+            </p>
             """
 
         # Build transformations rows HTML
@@ -444,11 +599,14 @@ class ExportService:
         <div class="section-title">Quality Findings &amp; Evidence ({len(findings)})</div>
         {findings_html if findings_html else '<p style="color: #10b981; font-weight: 600;">No quality issues found! Dataset passed all deterministic checks.</p>'}
 
+        {comparison_html}
+
         <div class="section-title">Applied Cleaning Lineage</div>
         {transforms_html}
 
         <div class="disclaimer-box">
-            <strong>Audit Disclaimer:</strong> {report_data["disclaimer"]}
+            <strong>Audit Disclaimer:</strong> {report_data["disclaimer"]}<br><br>
+            <strong>Spreadsheet Export Safety:</strong> When exporting CSVs in spreadsheet-safe mode, cells starting with formula-execution characters (<code>=</code>, <code>+</code>, <code>-</code>, <code>@</code>, tab, carriage return) that are not valid numeric values have a leading single quote (<code>'</code>) prepended to prevent formula injection / DDE command execution in spreadsheet software like Microsoft Excel, LibreOffice Calc, and Google Sheets.
         </div>
     </div>
 </body>
@@ -462,14 +620,33 @@ class ExportService:
     def _sanitize_for_spreadsheet(df: pd.DataFrame) -> pd.DataFrame:
         """
         Prevent spreadsheet formula injection (CSV Injection).
-        If a text cell begins with '=', '+', '-', '@', tab, or CR, prepend with single quote.
+        If a text cell begins with '=', '+', '-', '@', tab, or CR, prepend with single quote
+        unless the cell is a valid numeric string (e.g. negative number like '-42').
         """
+        if df.empty or len(df.columns) == 0:
+            return df.copy()
+
         df_copy = df.copy()
+
+        def sanitize_val(val: Any) -> Any:
+            if not isinstance(val, str):
+                return val
+            stripped = val.lstrip()
+            if not stripped:
+                return val
+            if stripped.startswith(FORMULA_PREFIXES):
+                if stripped.startswith(('+', '-')):
+                    try:
+                        float(stripped)
+                        return val  # Safe numeric string
+                    except ValueError:
+                        pass
+                return f"'{val}"
+            return val
+
         for col in df_copy.columns:
             if df_copy[col].dtype == object or pd.api.types.is_string_dtype(df_copy[col]):
-                df_copy[col] = df_copy[col].apply(
-                    lambda val: f"'{val}" if isinstance(val, str) and val.startswith(FORMULA_PREFIXES) else val
-                )
+                df_copy[col] = df_copy[col].apply(sanitize_val)
         return df_copy
 
     @staticmethod
