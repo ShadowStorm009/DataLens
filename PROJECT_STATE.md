@@ -15,7 +15,7 @@
 
 - **Last updated:** 2026-10-27 11:55 IST
 - **Branch:** `main`
-- **HEAD commit:** `1a9c0d3` (docs: finalize shippable product documentation, architecture diagram, deployment guide, and Docker setup)
+- **HEAD commit:** `e97f982` (fix(audit): sync summary cards with audit findings and test dataset metrics)
 - **Git status:** Clean build, 88 automated pytest tests passing in 2.62s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
