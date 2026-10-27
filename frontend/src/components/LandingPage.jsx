@@ -239,18 +239,7 @@ export default function LandingPage({
           </div>
         )}
 
-        {/* Error State */}
-        {error && (
-          <div className="card" style={{ padding: '1.5rem', background: 'var(--danger-bg)', border: '1px solid #fecaca', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <strong style={{ color: 'var(--danger)' }}>Failed to load datasets:</strong>
-              <span style={{ marginLeft: '0.5rem', color: 'var(--text-main)', fontSize: '0.9rem' }}>{error}</span>
-            </div>
-            <button className="btn btn-outline" style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }} onClick={onRefresh}>
-              Retry
-            </button>
-          </div>
-        )}
+        {/* Error State is handled globally in App.jsx to avoid duplicate stacked error notifications */}
 
         {/* Empty State */}
         {!loading && !error && recentDatasets.length === 0 && (

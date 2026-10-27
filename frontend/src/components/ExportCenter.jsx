@@ -11,10 +11,24 @@ import {
   downloadFileFromUrl,
 } from '../api/client';
 
+/**
+ * Helper to determine if a dataset version represents a cleaned/transformed version
+ * (as opposed to the raw/original upload baseline Version 1).
+ */
+export function isCleanedVersion(version) {
+  if (!version || typeof version !== 'object') return false;
+  return Boolean(
+    (typeof version.version_number === 'number' && version.version_number > 1) ||
+    version.transformation ||
+    version.parent_version_id
+  );
+}
+
 export default function ExportCenter({
   datasets: initialDatasets = [],
   initialDatasetId = null,
   initialVersionId = null,
+  initialVersions = [],
   onDatasetChange,
   onVersionChange,
   onNavigateToAudit,
@@ -26,7 +40,7 @@ export default function ExportCenter({
   
   // Dataset detail & version states
   const [datasetMeta, setDatasetMeta] = useState(null);
-  const [versions, setVersions] = useState([]);
+  const [versions, setVersions] = useState(initialVersions);
   const [selectedVersionId, setSelectedVersionId] = useState(initialVersionId || '');
   const [loadingVersions, setLoadingVersions] = useState(false);
   
@@ -196,7 +210,8 @@ export default function ExportCenter({
 
   // Filename preview helper
   const getCleanDatasetName = () => {
-    const raw = datasetMeta?.name || 'dataset';
+    const activeDs = datasets.find((d) => d.id === selectedDatasetId) || null;
+    const raw = datasetMeta?.name || activeDs?.name || 'dataset';
     return raw.replace(/[^a-zA-Z0-9_-]/g, '_');
   };
 
@@ -568,7 +583,7 @@ export default function ExportCenter({
                   }}
                 >
                   {versions.map((ver) => {
-                    const isOriginal = ver.version_number === 1;
+                    const isOriginal = !isCleanedVersion(ver);
                     const typeLabel = isOriginal ? '[Original Upload]' : '[Cleaned / Transformed]';
                     const activeLabel = ver.is_current ? ' (Current Active)' : '';
                     const transformInfo = ver.transformation
@@ -600,7 +615,7 @@ export default function ExportCenter({
                     <strong style={{ fontSize: '1rem', color: 'var(--text-main)' }}>
                       Version {selectedVersion.version_number}
                     </strong>
-                    {selectedVersion.version_number === 1 ? (
+                    {!isCleanedVersion(selectedVersion) ? (
                       <span
                         className="badge"
                         style={{
@@ -633,7 +648,7 @@ export default function ExportCenter({
                 </div>
 
                 {/* Transformation Details if child version */}
-                {selectedVersion.version_number > 1 && selectedVersion.transformation ? (
+                {isCleanedVersion(selectedVersion) && selectedVersion.transformation ? (
                   <div
                     style={{
                       background: '#ffffff',
@@ -658,7 +673,7 @@ export default function ExportCenter({
                       {selectedVersion.parent_version_id && ' &bull; Derived from parent baseline'}
                     </div>
                   </div>
-                ) : selectedVersion.version_number === 1 ? (
+                ) : !isCleanedVersion(selectedVersion) ? (
                   <div
                     style={{
                       background: '#ffffff',
@@ -1326,7 +1341,9 @@ export default function ExportCenter({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <span style={{ fontSize: '1.25rem' }}>📥</span>
-                <strong style={{ fontSize: '0.95rem' }}>1. Download Cleaned CSV</strong>
+                <strong style={{ fontSize: '0.95rem' }}>
+                  1. Download {isCleanedVersion(selectedVersion) ? 'Cleaned CSV' : 'Original CSV'}
+                </strong>
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginBottom: '0.75rem' }}>
                 Export the exact matching CSV data file for Version {selectedVersion?.version_number || 1}.
