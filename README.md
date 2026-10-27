@@ -13,7 +13,7 @@
 > [!IMPORTANT]
 > **Submission Video & Artifacts**:  
 > **Google Drive Link:** [https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE](https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE?usp=sharing)  
-> *(Contains: Full Walkthrough Screencast, High-Resolution Architecture Slides, and Final Project Presentation PDF)*
+> **Live Working Link :**(https://data-lens-pi-two.vercel.app/)*
 
 ---
 
@@ -396,133 +396,8 @@ DataLens maintains a comprehensive test suite of **98 unit, integration, and end
 
 ---
 
-## 13. Production Deployment Guide
 
-> [!NOTE]
-> **Production Architecture**: DataLens is designed for decoupled cloud deployment with the FastAPI backend hosted on **Render** (as a Docker Web Service with an attached Persistent Disk) and the React frontend hosted on **Vercel**. It can also run as an all-in-one container locally via Docker Compose. Detailed deployment steps are provided below and in the dedicated [Deployment Guide](docs/deployment.md).
-
-### Cloud Deployment: Render (Backend) + Vercel (Frontend)
-
-#### 1. Backend on Render (Docker Web Service)
-1. In the [Render Dashboard](https://dashboard.render.com/), create a **New Web Service** from your GitHub repository (or deploy via **New +** $\rightarrow$ **Blueprint** using [`render.yaml`](render.yaml)).
-2. Select runtime **Docker** and keep **Root Directory** blank (defaults to repository root `.`).
-3. Under **Advanced Settings**:
-   - **Dockerfile Path**: `backend/Dockerfile.render` (dedicated backend-only image; no Node.js/npm/Vite build overhead).
-   - **Docker Context**: `.` (or leave blank to use the repository root, ensuring backend imports resolve).
-4. Set Environment Variables:
-   - `DATALENS_ENV`: `production`
-   - `DATALENS_HOST`: `0.0.0.0`
-   - `DATABASE_URL`: `sqlite:////app/storage/datalens.db`
-   - `STORAGE_DIR`: `/app/storage`
-   - `CORS_ORIGINS`: `https://<your-vercel-domain>.vercel.app` (comma-separated, no trailing slashes)
-5. Set Health Check Path: `/health` (supports `GET` and `HEAD`).
-6. **Attach Persistent Disk (Critical)**:
-   - Go to the **Disks** tab and add a disk mounted at `/app/storage` (1 GB+).
-   - *Why required*: Docker containers on Render have ephemeral filesystems; without a persistent disk, uploaded CSVs and SQLite database tables are wiped on redeployment or restart.
-   - *Instance constraint*: Keep instance count at `1`. SQLite is single-node and cannot safely share disk writes across multiple concurrent instances.
-7. Deploy and verify health at `https://<your-render-app>.onrender.com/health`.
-
-#### 2. Frontend on Vercel
-1. In the [Vercel Dashboard](https://vercel.com/dashboard), import the repository.
-2. Set **Root Directory** to `frontend`.
-3. Set **Framework Preset** to `Vite`.
-4. Add Environment Variable:
-   - `VITE_API_BASE_URL`: `https://<your-render-app>.onrender.com/api/v1`
-5. Deploy. After deployment, copy your Vercel URL and add it to `CORS_ORIGINS` in Render!
-
----
-
-### Docker & Docker Compose (Local / All-In-One Container)
-
-The repository includes a production-ready, multi-stage [`Dockerfile`](Dockerfile) and [`docker-compose.yml`](docker-compose.yml) that packages both the compiled React frontend and the FastAPI backend into a single lightweight container.
-
-```bash
-# 1. Build and start the container in detached mode:
-docker compose up --build -d
-
-# 2. Check container health status:
-curl -I http://localhost:8000/health
-
-# 3. Open in browser:
-# Navigate to http://localhost:8000
-```
-
-> [!CAUTION]
-> **Persistent Storage Volume Requirement**:  
-> The SQLite database (`/app/storage/datalens.db`) and versioned CSVs (`/app/storage/*.csv`) **must** reside on a persistent volume mount (such as the `datalens_data` volume configured in `docker-compose.yml` or a Render Persistent Disk mounted at `/app/storage`). Storing `/app/storage` on an ephemeral container layer will cause all uploaded datasets and audit histories to be lost upon container restart.
-
----
-
-### Linux VPS (Systemd + Nginx Reverse Proxy)
-
-For deployment on a dedicated Ubuntu, Debian, or Arch Linux server:
-
-#### Step 1: Systemd Service (`/etc/systemd/system/datalens.service`)
-```ini
-[Unit]
-Description=DataLens FastAPI Backend Service
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/datalens
-EnvironmentFile=/var/www/datalens/.env
-ExecStart=/var/www/datalens/.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --workers 2
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start the service:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now datalens
-```
-
-#### Step 2: Nginx Reverse Proxy (`/etc/nginx/sites-available/datalens`)
-```nginx
-server {
-    listen 80;
-    server_name datalens.yourdomain.com;
-
-    # Serve compiled frontend static assets
-    root /var/www/datalens/frontend/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # Proxy API and health requests to Uvicorn backend
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /health {
-        proxy_pass http://127.0.0.1:8000/health;
-        proxy_set_header Host $host;
-    }
-
-    client_max_body_size 12M;
-}
-```
-
-Enable site and restart Nginx:
-```bash
-sudo ln -s /etc/nginx/sites-available/datalens /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
----
-
-## 14. Core Invariants & Limitations
+## 13. Core Invariants & Limitations
 
 ### Architectural Invariants:
 1. **Deterministic Logic**: Statistical checks, scores, and transformations use pure mathematical algorithms in Pandas and NumPy. No external LLMs or black-box third-party services are invoked.
