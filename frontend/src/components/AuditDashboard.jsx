@@ -266,19 +266,25 @@ export default function AuditDashboard({
   };
 
   const handleTransformationApplied = async (res) => {
+    const updatedDataset = {
+      ...dataset,
+      ...(res.result_version_id ? { current_version_id: res.result_version_id } : {}),
+      ...(res.result_version
+        ? {
+            row_count: res.result_version.row_count,
+            column_count: res.result_version.column_count,
+          }
+        : {}),
+    };
+
     if (res.result_version_id) {
-      dataset.current_version_id = res.result_version_id;
       setSelectedVersionId(res.result_version_id);
       if (onVersionChange) {
         onVersionChange(res.result_version_id);
       }
     }
-    if (res.result_version) {
-      dataset.row_count = res.result_version.row_count;
-      dataset.column_count = res.result_version.column_count;
-    }
     if (onDatasetUpdate) {
-      onDatasetUpdate({ ...dataset });
+      onDatasetUpdate(updatedDataset);
     }
     setTransformationSuccess(
       res.summary || 'Transformation successfully applied and new version created!'
