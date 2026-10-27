@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getLatestAuditsForDatasets } from '../api/client';
+import { useAppDispatch, useAppSelector } from '../store/index.js';
+import { selectAuditScores, setCachedAuditScores } from '../store/datasetsSlice.js';
 import UploadSection from './UploadSection';
 
 export default function LandingPage({
@@ -13,7 +15,8 @@ export default function LandingPage({
   onPreviewDataset,
   onNavigateToAllDatasets,
 }) {
-  const [auditScores, setAuditScores] = useState({});
+  const dispatch = useAppDispatch();
+  const auditScores = useAppSelector(selectAuditScores);
   const [loadingScores, setLoadingScores] = useState(false);
   const [recentUpload, setRecentUpload] = useState(null);
 
@@ -22,22 +25,22 @@ export default function LandingPage({
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, 5);
 
-  // Fetch real latest audit scores for these recent datasets
+  // Fetch real latest audit scores for these recent datasets if not cached
   useEffect(() => {
     let isMounted = true;
     async function loadScores() {
       if (recentDatasets.length === 0) return;
       const idsToFetch = recentDatasets
         .map((d) => d.id)
-        .filter((id) => auditScores[id] === undefined);
+        .filter((id) => !auditScores[id]);
 
       if (idsToFetch.length === 0) return;
 
       setLoadingScores(true);
       try {
         const scoreMap = await getLatestAuditsForDatasets(idsToFetch);
-        if (isMounted) {
-          setAuditScores((prev) => ({ ...prev, ...scoreMap }));
+        if (isMounted && scoreMap) {
+          dispatch(setCachedAuditScores(scoreMap));
         }
       } catch (_) {
         // Non-critical audit score fetch
@@ -50,7 +53,7 @@ export default function LandingPage({
     return () => {
       isMounted = false;
     };
-  }, [recentDatasets.map((d) => d.id).join(',')]);
+  }, [recentDatasets, auditScores, dispatch]);
 
   const handleUploadComplete = (newDataset) => {
     setRecentUpload(newDataset);

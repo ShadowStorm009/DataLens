@@ -57,6 +57,11 @@ const initialState = {
   selectedDataset: initialCachedDataset,
   previewingDataset: initialCachedPreview,
   routeDatasetLoading: Boolean(initialRoute.datasetId && !initialCachedDataset),
+  // In-memory Redux caches to prevent recalculation and redundant network fetches
+  auditsByVersion: {},       // { [versionId]: auditObject }
+  profilesByVersion: {},     // { [versionId]: profileObject }
+  versionsByDataset: {},     // { [datasetId]: versionsArray }
+  auditScoresByDataset: {},  // { [datasetId]: { score, auditedAt, auditId } }
 };
 
 export const datasetsSlice = createSlice({
@@ -92,6 +97,39 @@ export const datasetsSlice = createSlice({
       }
       if (state.previewingDataset && state.previewingDataset.id === deletedId) {
         state.previewingDataset = null;
+      }
+      delete state.versionsByDataset[deletedId];
+      delete state.auditScoresByDataset[deletedId];
+    },
+    setCachedAudit: (state, action) => {
+      const { versionId, audit } = action.payload || {};
+      if (versionId && audit) {
+        state.auditsByVersion[versionId] = audit;
+        if (audit.dataset_id) {
+          state.auditScoresByDataset[audit.dataset_id] = {
+            score: audit.score,
+            auditedAt: audit.created_at,
+            auditId: audit.id,
+          };
+        }
+      }
+    },
+    setCachedProfile: (state, action) => {
+      const { versionId, profile } = action.payload || {};
+      if (versionId && profile) {
+        state.profilesByVersion[versionId] = profile;
+      }
+    },
+    setCachedVersions: (state, action) => {
+      const { datasetId, versions } = action.payload || {};
+      if (datasetId && Array.isArray(versions)) {
+        state.versionsByDataset[datasetId] = versions;
+      }
+    },
+    setCachedAuditScores: (state, action) => {
+      const scoreMap = action.payload;
+      if (scoreMap && typeof scoreMap === 'object') {
+        state.auditScoresByDataset = { ...state.auditScoresByDataset, ...scoreMap };
       }
     },
   },
@@ -145,6 +183,10 @@ export const {
   datasetAdded,
   datasetUpdated,
   datasetDeleted,
+  setCachedAudit,
+  setCachedProfile,
+  setCachedVersions,
+  setCachedAuditScores,
 } = datasetsSlice.actions;
 
 // Selectors
@@ -154,5 +196,16 @@ export const selectDatasetsError = (state) => state.datasets.error;
 export const selectSelectedDataset = (state) => state.datasets.selectedDataset;
 export const selectPreviewingDataset = (state) => state.datasets.previewingDataset;
 export const selectRouteDatasetLoading = (state) => state.datasets.routeDatasetLoading;
+
+export const selectAuditByVersion = (state, versionId) =>
+  versionId ? state.datasets.auditsByVersion[versionId] || null : null;
+
+export const selectProfileByVersion = (state, versionId) =>
+  versionId ? state.datasets.profilesByVersion[versionId] || null : null;
+
+export const selectVersionsByDataset = (state, datasetId) =>
+  datasetId ? state.datasets.versionsByDataset[datasetId] || null : null;
+
+export const selectAuditScores = (state) => state.datasets.auditScoresByDataset;
 
 export default datasetsSlice.reducer;

@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getExportCsvUrl, downloadFileFromUrl, getLatestAuditsForDatasets } from '../api/client';
+import { useAppDispatch, useAppSelector } from '../store/index.js';
+import { selectAuditScores, setCachedAuditScores } from '../store/datasetsSlice.js';
 
 export default function AllDatasetsPage({
   datasets,
@@ -13,33 +15,34 @@ export default function AllDatasetsPage({
   onDelete,
   onBackToHome,
 }) {
+  const dispatch = useAppDispatch();
+  const auditScores = useAppSelector(selectAuditScores);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [auditScores, setAuditScores] = useState({});
   const [loadingScores, setLoadingScores] = useState(false);
   const [datasetToDelete, setDatasetToDelete] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [exportError, setExportError] = useState(null);
   const [exportingId, setExportingId] = useState(null);
 
-  // Fetch real audit scores for visible datasets
+  // Fetch real audit scores for visible datasets that aren't cached yet
   useEffect(() => {
     let isMounted = true;
     async function loadScores() {
-      if (datasets.length === 0) return;
+      if (!datasets || datasets.length === 0) return;
       const idsToFetch = datasets
         .map((d) => d.id)
-        .filter((id) => auditScores[id] === undefined);
+        .filter((id) => !auditScores[id]);
 
       if (idsToFetch.length === 0) return;
 
       setLoadingScores(true);
       try {
         const scoreMap = await getLatestAuditsForDatasets(idsToFetch);
-        if (isMounted) {
-          setAuditScores((prev) => ({ ...prev, ...scoreMap }));
+        if (isMounted && scoreMap) {
+          dispatch(setCachedAuditScores(scoreMap));
         }
       } catch (_) {
         // Non-critical audit score fetch
@@ -52,7 +55,7 @@ export default function AllDatasetsPage({
     return () => {
       isMounted = false;
     };
-  }, [datasets.map((d) => d.id).join(',')]);
+  }, [datasets, auditScores, dispatch]);
 
   // Filter and sort datasets
   const filteredAndSortedDatasets = useMemo(() => {

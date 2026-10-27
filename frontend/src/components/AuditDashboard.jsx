@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useStore } from 'react-redux';
 import {
   runAudit,
   listAudits,
@@ -10,6 +11,15 @@ import {
   getColabNotebookUrl,
   downloadFileFromUrl,
 } from '../api/client';
+import { useAppDispatch, useAppSelector } from '../store/index.js';
+import {
+  selectAuditByVersion,
+  selectProfileByVersion,
+  selectVersionsByDataset,
+  setCachedAudit,
+  setCachedProfile,
+  setCachedVersions,
+} from '../store/datasetsSlice.js';
 import FindingDetailDrawer from './FindingDetailDrawer';
 import CleaningPanel from './CleaningPanel';
 
@@ -24,16 +34,33 @@ export default function AuditDashboard({
   onSwitchToCompare,
   onSwitchToExport,
 }) {
-  const [versions, setVersions] = useState([]);
+  const store = useStore();
+  const dispatch = useAppDispatch();
   const [selectedVersionId, setSelectedVersionId] = useState(
     initialVersionId || dataset.current_version_id
   );
-  const [audit, setAudit] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const targetVer = selectedVersionId || dataset.current_version_id;
+
+  // Retrieve cached audit, profile, and versions from Redux
+  const cachedAudit = useAppSelector((state) => selectAuditByVersion(state, targetVer));
+  const cachedProfile = useAppSelector((state) => selectProfileByVersion(state, targetVer));
+  const cachedVersions = useAppSelector((state) => selectVersionsByDataset(state, dataset.id));
+
+  const [versions, setVersions] = useState(cachedVersions || []);
+  const [audit, setAudit] = useState(cachedAudit || null);
+  const [profile, setProfile] = useState(cachedProfile || null);
+  const [loading, setLoading] = useState(!cachedAudit || !cachedProfile);
   const [runningAudit, setRunningAudit] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFinding, setSelectedFinding] = useState(null);
+
+  // Sync state if Redux cache resolves or changes
+  useEffect(() => {
+    if (cachedAudit) setAudit(cachedAudit);
+    if (cachedProfile) setProfile(cachedProfile);
+    if (cachedVersions && cachedVersions.length > 0) setVersions(cachedVersions);
+    if (cachedAudit && cachedProfile) setLoading(false);
+  }, [cachedAudit, cachedProfile, cachedVersions]);
 
   // Cleaning Panel state with pre-filled operation & column support
   const [showCleaningPanel, setShowCleaningPanel] = useState(false);
@@ -73,32 +100,64 @@ export default function AuditDashboard({
     }
   };
 
-  // Fetch or trigger audit for a specific version
+  // Fetch or trigger audit for a specific version with Redux cache support
   const loadAuditData = useCallback(
-    async (vId = null) => {
+    async (vId = null, forceRun = false) => {
+      const activeVer = vId || selectedVersionId || dataset.current_version_id;
+      const state = store.getState();
+      const existingAudit = selectAuditByVersion(state, activeVer);
+      const existingProfile = selectProfileByVersion(state, activeVer);
+      const existingVersions = selectVersionsByDataset(state, dataset.id);
+
+      // If already present in cache and not forcing a re-run, skip loading screen & network
+      if (!forceRun && existingAudit && existingProfile) {
+        setAudit(existingAudit);
+        setProfile(existingProfile);
+        setLoading(false);
+        if (!existingVersions || existingVersions.length === 0) {
+          listVersions(dataset.id)
+            .then((vers) => {
+              setVersions(vers);
+              dispatch(setCachedVersions({ datasetId: dataset.id, versions: vers }));
+            })
+            .catch(() => {});
+        }
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
-        const vers = await listVersions(dataset.id);
-        setVersions(vers);
-
-        const targetVer = vId || selectedVersionId || dataset.current_version_id;
-
-        // Fetch profile and audits in parallel for exact target version
-        const [prof, auditListRes] = await Promise.all([
-          getDatasetProfile(dataset.id, targetVer),
-          listAudits(dataset.id, targetVer),
+        const [vers, prof, auditListRes] = await Promise.all([
+          existingVersions && existingVersions.length > 0
+            ? Promise.resolve(existingVersions)
+            : listVersions(dataset.id),
+          existingProfile
+            ? Promise.resolve(existingProfile)
+            : getDatasetProfile(dataset.id, activeVer),
+          existingAudit
+            ? Promise.resolve({ audits: [existingAudit] })
+            : listAudits(dataset.id, activeVer),
         ]);
-        setProfile(prof);
 
-        if (auditListRes.audits && auditListRes.audits.length > 0) {
+        setVersions(vers);
+        dispatch(setCachedVersions({ datasetId: dataset.id, versions: vers }));
+
+        setProfile(prof);
+        dispatch(setCachedProfile({ versionId: activeVer, profile: prof }));
+
+        if (existingAudit && !forceRun) {
+          setAudit(existingAudit);
+        } else if (auditListRes.audits && auditListRes.audits.length > 0 && !forceRun) {
           const latestAuditId = auditListRes.audits[0].id;
           const fullAudit = await getAudit(dataset.id, latestAuditId);
           setAudit(fullAudit);
+          dispatch(setCachedAudit({ versionId: activeVer, audit: fullAudit }));
         } else {
           setRunningAudit(true);
-          const newAudit = await runAudit(dataset.id, { versionId: targetVer });
+          const newAudit = await runAudit(dataset.id, { versionId: activeVer });
           setAudit(newAudit);
+          dispatch(setCachedAudit({ versionId: activeVer, audit: newAudit }));
         }
       } catch (err) {
         setError(err.message || 'Failed to load audit data');
@@ -107,9 +166,7 @@ export default function AuditDashboard({
         setRunningAudit(false);
       }
     },
-    // Intentionally omit selectedVersionId from deps so callback identity is stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dataset.id, dataset.current_version_id]
+    [dataset.id, dataset.current_version_id, selectedVersionId, dispatch, store]
   );
 
   useEffect(() => {
@@ -133,9 +190,11 @@ export default function AuditDashboard({
         versionId: selectedVersionId,
       });
       setAudit(newAudit);
+      dispatch(setCachedAudit({ versionId: selectedVersionId, audit: newAudit }));
       try {
         const prof = await getDatasetProfile(dataset.id, selectedVersionId);
         setProfile(prof);
+        dispatch(setCachedProfile({ versionId: selectedVersionId, profile: prof }));
       } catch {
         // Non-critical profile refresh error
       }
@@ -290,7 +349,7 @@ export default function AuditDashboard({
       res.summary || 'Transformation successfully applied and new version created!'
     );
     setShowCleaningPanel(false);
-    await loadAuditData(res.result_version_id);
+    await loadAuditData(res.result_version_id, true);
   };
 
   // Open the cleaning panel pre-populated for a specific finding fix
@@ -594,10 +653,12 @@ export default function AuditDashboard({
       {loading ? (
         <div className="card" style={{ textAlign: 'center', padding: '3.5rem' }}>
           <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
-            Auditing Dataset Deterministically...
+            {runningAudit ? 'Auditing Dataset Deterministically...' : 'Loading Audit Results...'}
           </div>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Evaluating 8 deterministic audit rules and calculating verified quality score for Version {currentVerNum}
+            {runningAudit
+              ? `Evaluating 8 deterministic audit rules and calculating verified quality score for Version ${currentVerNum}`
+              : `Retrieving verified quality score and findings for Version ${currentVerNum}`}
           </p>
         </div>
       ) : (

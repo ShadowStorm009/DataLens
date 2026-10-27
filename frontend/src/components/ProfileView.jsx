@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useStore } from 'react-redux';
 import { getDatasetProfile, listAudits, getAudit } from '../api/client';
+import { useAppDispatch } from '../store/index.js';
+import {
+  selectProfileByVersion,
+  selectAuditByVersion,
+  setCachedProfile,
+  setCachedAudit,
+} from '../store/datasetsSlice.js';
 
 export default function ProfileView({
   dataset,
@@ -9,16 +17,29 @@ export default function ProfileView({
   onBackToAudit,
   onNavigateToCompare,
 }) {
-  const [profile, setProfile] = useState(null);
-  const [audit, setAudit] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const store = useStore();
+  const dispatch = useAppDispatch();
+  const activeVer = dataset?.current_version_id;
+
+  const cachedProfile = selectProfileByVersion(store.getState(), activeVer);
+  const cachedAudit = selectAuditByVersion(store.getState(), activeVer);
+
+  const [profile, setProfile] = useState(cachedProfile || null);
+  const [audit, setAudit] = useState(cachedAudit || null);
+  const [loading, setLoading] = useState(!cachedProfile);
   const [error, setError] = useState(null);
 
   // Active view mode: 'detail' (master-detail single column EDA) or 'table' (all columns summary)
   const [viewMode, setViewMode] = useState('detail');
 
   // Column selection & filtering state
-  const [selectedColName, setSelectedColName] = useState(initialColumnName || '');
+  const initialCol = useMemo(() => {
+    if (initialColumnName) return initialColumnName;
+    if (cachedProfile?.columns?.length > 0) return cachedProfile.columns[0].name;
+    return '';
+  }, [initialColumnName, cachedProfile]);
+
+  const [selectedColName, setSelectedColName] = useState(initialCol);
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('index'); // 'index' | 'name' | 'nulls' | 'findings'
@@ -34,6 +55,29 @@ export default function ProfileView({
     let isMounted = true;
     async function loadData() {
       if (!dataset) return;
+
+      const state = store.getState();
+      const existingProf = selectProfileByVersion(state, dataset.current_version_id);
+      const existingAud = selectAuditByVersion(state, dataset.current_version_id);
+
+      if (existingProf) {
+        if (!profile) setProfile(existingProf);
+        if (existingAud && !audit) setAudit(existingAud);
+        setLoading(false);
+
+        if (existingProf.columns && existingProf.columns.length > 0 && !selectedColName) {
+          const match = initialColumnName
+            ? existingProf.columns.find((c) => c.name === initialColumnName)
+            : null;
+          const chosenName = match ? match.name : existingProf.columns[0].name;
+          setSelectedColName(chosenName);
+          if (onColumnChange && chosenName !== initialColumnName) {
+            onColumnChange(chosenName);
+          }
+        }
+        return;
+      }
+
       setLoading(true);
       setError(null);
       try {
@@ -41,6 +85,7 @@ export default function ProfileView({
         const profileData = await getDatasetProfile(dataset.id, dataset.current_version_id);
         if (!isMounted) return;
         setProfile(profileData);
+        dispatch(setCachedProfile({ versionId: dataset.current_version_id, profile: profileData }));
 
         // Auto-select first column if no initial column or not found
         if (profileData.columns && profileData.columns.length > 0) {
@@ -59,7 +104,10 @@ export default function ProfileView({
           const audits = await listAudits(dataset.id, dataset.current_version_id);
           if (audits && audits.length > 0) {
             const auditDetail = await getAudit(dataset.id, audits[0].id);
-            if (isMounted) setAudit(auditDetail);
+            if (isMounted) {
+              setAudit(auditDetail);
+              dispatch(setCachedAudit({ versionId: dataset.current_version_id, audit: auditDetail }));
+            }
           }
         } catch (_) {
           // Audit findings are optional enrichment
@@ -74,7 +122,7 @@ export default function ProfileView({
     return () => {
       isMounted = false;
     };
-  }, [dataset, initialColumnName]);
+  }, [dataset?.id, dataset?.current_version_id, initialColumnName, dispatch, store]);
 
   // Map of column_name -> list of findings
   const columnFindingsMap = useMemo(() => {
