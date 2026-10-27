@@ -1292,9 +1292,22 @@ export default function CleaningWizard({
   const renderStep6 = () => {
     // If successfully finished applying
     if (executionResult && newAuditResult) {
-      const prevScore = audit?.quality_score ?? 0;
-      const newScore = newAuditResult?.quality_score ?? 0;
-      const scoreDelta = newScore - prevScore;
+      const extractScore = (obj) => {
+        if (!obj) return null;
+        if (typeof obj.score === 'number') return obj.score;
+        if (typeof obj.quality_score === 'number') return obj.quality_score;
+        if (typeof obj.summary?.score === 'number') return obj.summary.score;
+        return null;
+      };
+
+      const prevScoreRaw = extractScore(audit);
+      const newScoreRaw = extractScore(newAuditResult);
+      const prevScore = prevScoreRaw !== null ? prevScoreRaw : '—';
+      const newScore = newScoreRaw !== null ? newScoreRaw : '—';
+      const scoreDelta =
+        prevScoreRaw !== null && newScoreRaw !== null
+          ? Math.round((newScoreRaw - prevScoreRaw) * 10) / 10
+          : 0;
       const finalVerId = executionResult.finalVersionId;
 
       return (
@@ -1311,14 +1324,16 @@ export default function CleaningWizard({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', background: '#fff', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', textAlign: 'center', marginBottom: '1.25rem' }}>
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>PREVIOUS QUALITY SCORE</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{prevScore} / 100</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+                  {prevScore !== '—' ? `${prevScore} / 100` : '—'}
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>NEW QUALITY SCORE</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--success)' }}>
-                  {newScore} / 100
+                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: scoreDelta >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                  {newScore !== '—' ? `${newScore} / 100` : '—'}
                   {scoreDelta !== 0 && (
-                    <span style={{ fontSize: '0.85rem', marginLeft: '0.35rem', color: scoreDelta > 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    <span style={{ fontSize: '0.85rem', marginLeft: '0.35rem', color: scoreDelta > 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
                       ({scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta})
                     </span>
                   )}
