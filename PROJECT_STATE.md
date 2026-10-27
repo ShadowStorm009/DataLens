@@ -15,7 +15,7 @@
 
 - **Last updated:** 2026-10-27 09:55 IST
 - **Branch:** `main`
-- **HEAD commit:** `325bd61` (Version tracking & comparisons updated)
+- **HEAD commit:** `5d956f0` (Version tracking & comparisons updated)
 - **Git status:** Clean build, 77 automated pytest tests passing in 2.12s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
