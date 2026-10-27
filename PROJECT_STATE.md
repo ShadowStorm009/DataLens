@@ -41,8 +41,8 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Dataset preview & profile** | VERIFIED | `backend/app/audit/profiling.py`, `backend/app/api/routes/datasets.py`, `frontend/src/components/ProfileView.jsx`, `frontend/src/components/PreviewModal.jsx` | Reusable `ProfilingEngine` computing dataset and column statistics (numeric, categorical, datetime, boolean, text); type inference heuristics; bounded top-N values; caching tied to immutable versions; bounded preview modal; full responsive `ProfileView` | None | `backend/tests/test_profiling.py` 3 passed (hand-calculated values, edge cases resilience, caching & endpoint) |
 | **Audit rules & findings** | VERIFIED | `backend/app/audit/rules/`, `backend/app/audit/engine.py`, `backend/app/schemas/audit.py`, `backend/app/api/routes/audits.py` | 8 deterministic rules implemented; refined HighCardinalityRule to skip continuous float measurements (e.g. marks); documented configurable thresholds; rule failure resilience; persistence of `AuditRun` and `Finding` rows; regression test verifying summary metrics strictly agree with findings | None | `backend/tests/test_audit_rules.py` 15 passed (individual rule positive/negative tests, determinism, non-mutating verification, configurable thresholds, API execution, filtering, summary metrics agreement) |
 | **Quality score & dashboard** | VERIFIED | `backend/app/audit/scoring.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/FindingDetailDrawer.jsx`, `frontend/src/components/CleaningPanel.jsx` | Redesigned into two clear sections: Audit Overview (score gauge, disclaimer, KPI cards for missing/duplicates/severity, collapsible penalty breakdown, secondary advanced execution controls) and Actionable Findings (prioritized defect vs heuristic separation, structured evidence snippets, one-click preview fix actions pre-filling CleaningPanel, inspect column, view rows, and detail drawer) | None | `backend/tests/test_quality_score.py` 6 passed; Vite frontend build passing with 0 errors |
-| **Cleaning preview** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Non-mutating preview API & UI for median/mode imputation, duplicate removal, constant column drop; returns bounded sample diffs, row/cell deltas without modifying stored data | None | `backend/tests/test_transformations.py` 12 passed (median, mode, duplicate, constant col, immutability, preview/apply parity) |
-| **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Applying calls same transformation engine; persists new immutable `DatasetVersion` (v2, v3, etc.); records `Transformation` history row with parameters and metrics; auto-triggers re-audit in dashboard | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
+| **Cleaning preview & guided wizard** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx`, `frontend/src/components/CleaningPanel.jsx` | Guided 6-step cleaning wizard: (1) Rows & Columns with constant column detection and exact duplicate removal; (2) Missing values with median/mode imputation; (3) Inconsistent types review with unparseable values inspection and honest backend constraints; (4) Outlier review with Tukey fences and inspection-only retention; (5) Combined transformation review with live projected row/col counts and non-mutating preview simulation; (6) Apply, re-audit, score delta, and export | None | `backend/tests/test_transformations.py` 12 passed; Vite build clean in 813ms |
+| **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx` | Sequential execution engine applying validated transformations on in-memory copies, creating immutable versions (v2, v3, etc.), recording audit trail, and auto-triggering re-audit on completion with comparison links | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
 | **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Selected-version CSV export (not implicitly latest); safe generated filenames; formula injection protection with safe numeric string preservation; empty version handling; before/after comparison in HTML/JSON reports for child versions; version report endpoint; visible download failure handling | None | `backend/tests/test_export.py` 11 passed |
 | **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/app/core/errors.py`, `frontend/src/components/DatasetTable.jsx`, `backend/tests/test_reliability.py` | In-app deletion confirmation modal; DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; transaction rollback cleans storage files on DB commit failures; uniform error envelopes for Starlette `HTTPException` (404, 405) and `RequestValidationError` (422); duplicate submission prevention guards across UI; friendly network error interception | None | `backend/tests/test_reliability.py` 10 passed |
@@ -395,6 +395,47 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
         - *View Rows*: opens `PreviewModal`.
         - *View Details*: opens `FindingDetailDrawer`.
 - **Tests/results:** 88/88 backend pytest tests passing in 2.64s; production Vite build compiled cleanly in 816ms (0 errors).
+
+### 2026-10-27 — Guided Cleaning & Transformation Wizard Implementation
+- **Goal:** Replace single-operation cleaning panel with an intuitive 6-step guided cleaning wizard supporting persistent multi-step selections, honest backend constraints, non-mutating preview simulation, safe sequential execution, automatic re-auditing, and direct version compare/export actions.
+- **Wizard Steps Implemented:**
+  - **Step 1 (Remove Unwanted Rows and Columns):**
+    - Columns review table with column name, inferred type, null counts/percentages, distinct counts/ratios, and removal checkboxes.
+    - Constant columns (distinct_count <= 1) are prominently suggested for review; non-constant columns have disabled checkboxes with clear backend constraint explanations.
+    - Supported row removal: exact duplicate rows toggle with detected duplicate row count and percentage.
+    - Unsupported row removal operations (drop rows with missing values, delete specific rows by index) are clearly displayed with "Unsupported by Backend Engine" badges and honest explanations.
+    - Live projected row and column counts display before/after deltas and projected dimensions.
+  - **Step 2 (Handle Missing Values):**
+    - Identifies all columns with null_count > 0.
+    - Offers supported strategies: deterministic median imputation for numeric columns (showing pre-computed median value), mode imputation for categorical columns (showing top category).
+    - Unsupported strategies (mean imputation, arbitrary constant replacement, row dropping) are honestly marked as unsupported by the backend engine.
+    - "Select Recommended for All Columns" quick-action button.
+  - **Step 3 (Fix Inconsistent Data Types and Values):**
+    - Inspects audit findings for type inconsistencies (e.g. string "eighty" in numeric column `attendance_pct`).
+    - Displays detected inconsistent values, affected columns, and records.
+    - Honestly explains that DataLens does not perform ad-hoc NLP text-to-number parsing or in-place cell overwrites to preserve record provenance.
+    - Provides explicit "Skip Step (Leave Values Unchanged)" action.
+  - **Step 4 (Review Outliers):**
+    - Displays statistical outliers detected via Tukey's IQR rule with lower and upper fences.
+    - Educational notice explains that statistical outliers are candidates for inspection, not automatically data defects.
+    - Explains DataLens inspection-only policy; defaults to "Retain original values".
+  - **Step 5 (Review All Changes):**
+    - Ordered execution plan summarizing all pending transformations (removals, imputations).
+    - Projected final dataset dimensions.
+    - Multi-operation selector for non-mutating preview simulation calling `previewTransformation` against source version.
+  - **Step 6 (Apply, Re-audit, and Export):**
+    - Explicit confirmation prompt with immutability assurance.
+    - Safe sequential application strategy: iterates through operations, applying each to the result version of the previous operation, tracking intermediate version IDs.
+    - Graceful error handling: halts immediately on failure, reports intermediate version created, never claims false success.
+    - Automatic post-cleaning audit: runs `runAudit` on final version, displays before/after quality score, score delta, and remaining findings.
+    - Action buttons: direct links to download cleaned CSV, download audit report, compare versions with original, and return to dashboard.
+- **Files Modified:**
+  - `frontend/src/components/CleaningWizard.jsx`: New comprehensive 6-step wizard component.
+  - `frontend/src/components/CleaningPanel.jsx`: Replaced with wrapper rendering `CleaningWizard`.
+  - `frontend/src/components/AuditDashboard.jsx`: Passed `audit` and `onNavigateToCompare` props, updated button label to `🧹 Cleaning Wizard`.
+  - `PROJECT_STATE.md`: Updated Feature Matrix rows and handoff log.
+- **Tests/results:** 88/88 backend pytest tests passing in 2.57s; production Vite build clean in 813ms (0 errors); local daemon running and responding 200 OK.
+
 
 
 

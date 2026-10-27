@@ -391,7 +391,7 @@ export default function AuditDashboard({
             onClick={() => setShowCleaningPanel((prev) => !prev)}
             style={{ fontSize: '0.85rem', fontWeight: 600 }}
           >
-            {showCleaningPanel ? 'Close Cleaning Panel' : 'Clean & Transform'}
+            {showCleaningPanel ? 'Close Cleaning Wizard' : '🧹 Cleaning Wizard'}
           </button>
           {onSwitchToProfile && (
             <button className="btn btn-outline" onClick={onSwitchToProfile} style={{ fontSize: '0.85rem' }}>
@@ -501,10 +501,12 @@ export default function AuditDashboard({
         <CleaningPanel
           dataset={dataset}
           profile={profile}
+          audit={audit}
           onTransformationApplied={handleTransformationApplied}
           onClose={() => setShowCleaningPanel(false)}
           initialOperation={cleaningInitialOp}
           initialColumn={cleaningInitialCol}
+          onNavigateToCompare={onSwitchToCompare}
         />
       )}
 
