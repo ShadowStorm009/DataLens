@@ -13,9 +13,9 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 10:50 IST
+- **Last updated:** 2026-10-27 11:00 IST
 - **Branch:** `main`
-- **HEAD commit:** `f180a91` (docs: sync canonical handoff commit hash)
+- **HEAD commit:** `1a9c0d3` (docs: finalize shippable product documentation, architecture diagram, deployment guide, and Docker setup)
 - **Git status:** Clean build, 87 automated pytest tests passing in 2.42s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
