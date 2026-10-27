@@ -13,9 +13,9 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 16:55 IST
+- **Last updated:** 2026-10-27 16:56 IST
 - **Branch:** `main`
-- **HEAD commit:** `ef9b85c` (docs: sync canonical handoff commit hash)
+- **HEAD commit:** `cc74ba6` (feat(export): build dedicated DataLens Export Center with dataset versioning and audit reports)
 - **Git status:** Clean build, 90 automated pytest tests passing in 2.66s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
