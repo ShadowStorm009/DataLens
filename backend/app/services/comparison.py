@@ -1,3 +1,4 @@
+import pandas as pd
 from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,7 @@ from backend.app.schemas.comparison import (
     VersionComparisonResponse,
     ScoreComparisonResponse,
     MetricDeltaItem,
+    ColumnStatComparisonItem,
     FindingDiffItem,
     FindingsDiff,
     ColumnChanges,
@@ -80,19 +82,40 @@ class ComparisonService:
             common=common_cols,
         )
 
-        # Score comparison
+        # Score comparison & audit configuration checks
         score1 = audit1.score
         score2 = audit2.score
         score_delta = round(score2 - score1, 2) if (score1 is not None and score2 is not None) else None
 
         v1_method = audit1.score_method_version or "1.0"
         v2_method = audit2.score_method_version or "1.0"
-        is_compatible = (v1_method == v2_method)
-        method_note = (
-            "Scoring methodology versions match (v1.0)."
-            if is_compatible
-            else f"Notice: Scoring methods differ (baseline: {v1_method}, comparison: {v2_method}). Score delta should be interpreted with caution."
-        )
+        is_method_compatible = (v1_method == v2_method)
+
+        v1_target = (audit1.summary or {}).get("target_column")
+        v2_target = (audit2.summary or {}).get("target_column")
+        is_target_compatible = (v1_target == v2_target)
+
+        is_compatible = is_method_compatible and is_target_compatible
+
+        method_notes = []
+        if is_method_compatible:
+            method_notes.append(f"Scoring methodology versions match (v{v1_method}).")
+        else:
+            method_notes.append(
+                f"Notice: Scoring methods differ (baseline: v{v1_method}, comparison: v{v2_method}). "
+                "Score delta should be interpreted with caution."
+            )
+
+        audit_config_note = None
+        if not is_target_compatible:
+            audit_config_note = (
+                f"Notice: Target column configurations differ (Baseline: '{v1_target or 'None'}', "
+                f"Comparison: '{v2_target or 'None'}'). Target-dependent rules (Class Imbalance, "
+                "Potential Leakage) evaluated different target features."
+            )
+            method_notes.append(audit_config_note)
+
+        method_note = " ".join(method_notes)
 
         penalties_v1 = (audit1.summary or {}).get("penalties", {})
         penalties_v2 = (audit2.summary or {}).get("penalties", {})
@@ -105,6 +128,10 @@ class ComparisonService:
             v2_method=v2_method,
             is_compatible=is_compatible,
             method_note=method_note,
+            v1_target_column=v1_target,
+            v2_target_column=v2_target,
+            audit_config_compatible=is_target_compatible,
+            audit_config_note=audit_config_note,
             penalties_v1=penalties_v1,
             penalties_v2=penalties_v2,
         )
@@ -118,6 +145,12 @@ class ComparisonService:
             v2_missing = sum(int(get_missing_mask(df2[c]).sum()) for c in df2.columns)
         missing_delta = v2_missing - v1_missing
 
+        v1_total_cells = len(df1) * len(df1.columns)
+        v2_total_cells = len(df2) * len(df2.columns)
+        v1_missing_pct = round((v1_missing / v1_total_cells * 100), 2) if v1_total_cells > 0 else 0.0
+        v2_missing_pct = round((v2_missing / v2_total_cells * 100), 2) if v2_total_cells > 0 else 0.0
+        missing_pct_delta = round(v2_missing_pct - v1_missing_pct, 2)
+
         v1_dups = (audit1.summary or {}).get("duplicate_rows_count")
         if v1_dups is None:
             v1_dups = int(df1.duplicated(keep="first").sum()) if len(df1) > 1 else 0
@@ -125,6 +158,10 @@ class ComparisonService:
         if v2_dups is None:
             v2_dups = int(df2.duplicated(keep="first").sum()) if len(df2) > 1 else 0
         dups_delta = v2_dups - v1_dups
+
+        v1_dup_pct = round((v1_dups / len(df1) * 100), 2) if len(df1) > 0 else 0.0
+        v2_dup_pct = round((v2_dups / len(df2) * 100), 2) if len(df2) > 0 else 0.0
+        dup_pct_delta = round(v2_dup_pct - v1_dup_pct, 2)
 
         v1_high = sum(1 for f in audit1.findings if f.severity == "high")
         v2_high = sum(1 for f in audit2.findings if f.severity == "high")
@@ -161,11 +198,23 @@ class ComparisonService:
                 delta=missing_delta,
                 improved=(missing_delta < 0),
             ),
+            "missing_percentage": MetricDeltaItem(
+                v1_value=v1_missing_pct,
+                v2_value=v2_missing_pct,
+                delta=missing_pct_delta,
+                improved=(missing_pct_delta < 0),
+            ),
             "duplicate_rows": MetricDeltaItem(
                 v1_value=v1_dups,
                 v2_value=v2_dups,
                 delta=dups_delta,
                 improved=(dups_delta < 0),
+            ),
+            "duplicate_percentage": MetricDeltaItem(
+                v1_value=v1_dup_pct,
+                v2_value=v2_dup_pct,
+                delta=dup_pct_delta,
+                improved=(dup_pct_delta < 0),
             ),
             "high_severity_findings": MetricDeltaItem(
                 v1_value=v1_high,
@@ -192,6 +241,74 @@ class ComparisonService:
                 improved=(total_f_delta < 0),
             ),
         }
+
+        # Column-by-column statistics
+        all_cols = cols1 + [c for c in cols2 if c not in cols1]
+        column_stats_list: List[ColumnStatComparisonItem] = []
+
+        for col in all_cols:
+            in_v1 = col in cols1
+            in_v2 = col in cols2
+            status = "common" if (in_v1 and in_v2) else ("removed" if in_v1 else "added")
+
+            v1_type = str(df1[col].dtype) if in_v1 else None
+            v2_type = str(df2[col].dtype) if in_v2 else None
+
+            v1_nulls = int(get_missing_mask(df1[col]).sum()) if in_v1 else None
+            v2_nulls = int(get_missing_mask(df2[col]).sum()) if in_v2 else None
+            null_delta = (v2_nulls - v1_nulls) if (v1_nulls is not None and v2_nulls is not None) else None
+
+            v1_null_pct = round((v1_nulls / len(df1) * 100), 2) if (in_v1 and len(df1) > 0) else None
+            v2_null_pct = round((v2_nulls / len(df2) * 100), 2) if (in_v2 and len(df2) > 0) else None
+            null_pct_delta = round(v2_null_pct - v1_null_pct, 2) if (v1_null_pct is not None and v2_null_pct is not None) else None
+
+            v1_distinct = int(df1[col].nunique(dropna=True)) if in_v1 else None
+            v2_distinct = int(df2[col].nunique(dropna=True)) if in_v2 else None
+            distinct_delta = (v2_distinct - v1_distinct) if (v1_distinct is not None and v2_distinct is not None) else None
+
+            v1_mean, v2_mean, mean_delta = None, None, None
+            v1_median, v2_median, median_delta = None, None, None
+
+            if in_v1 and pd.api.types.is_numeric_dtype(df1[col]):
+                s1 = pd.to_numeric(df1[col], errors="coerce").dropna()
+                if len(s1) > 0:
+                    v1_mean = round(float(s1.mean()), 2)
+                    v1_median = round(float(s1.median()), 2)
+
+            if in_v2 and pd.api.types.is_numeric_dtype(df2[col]):
+                s2 = pd.to_numeric(df2[col], errors="coerce").dropna()
+                if len(s2) > 0:
+                    v2_mean = round(float(s2.mean()), 2)
+                    v2_median = round(float(s2.median()), 2)
+
+            if v1_mean is not None and v2_mean is not None:
+                mean_delta = round(v2_mean - v1_mean, 2)
+            if v1_median is not None and v2_median is not None:
+                median_delta = round(v2_median - v1_median, 2)
+
+            column_stats_list.append(
+                ColumnStatComparisonItem(
+                    column_name=col,
+                    status=status,
+                    v1_type=v1_type,
+                    v2_type=v2_type,
+                    v1_null_count=v1_nulls,
+                    v2_null_count=v2_nulls,
+                    null_count_delta=null_delta,
+                    v1_null_percentage=v1_null_pct,
+                    v2_null_percentage=v2_null_pct,
+                    null_percentage_delta=null_pct_delta,
+                    v1_distinct_count=v1_distinct,
+                    v2_distinct_count=v2_distinct,
+                    distinct_count_delta=distinct_delta,
+                    v1_mean=v1_mean,
+                    v2_mean=v2_mean,
+                    mean_delta=mean_delta,
+                    v1_median=v1_median,
+                    v2_median=v2_median,
+                    median_delta=median_delta,
+                )
+            )
 
         # Findings transition diff
         v1_signatures: Dict[tuple, Finding] = {
@@ -227,10 +344,23 @@ class ComparisonService:
             unresolved_count=len(unresolved),
         )
 
-        # Retrieve relevant transformations
-        transformations = db.query(Transformation).filter(
-            Transformation.dataset_id == dataset_id,
-        ).order_by(Transformation.created_at.asc()).all()
+        # Retrieve relevant transformations between v1 and v2 in chronological order
+        if v1.id == v2.id:
+            relevant_transformations = []
+        else:
+            all_trans = db.query(Transformation).filter(
+                Transformation.dataset_id == dataset_id,
+            ).order_by(Transformation.created_at.asc()).all()
+
+            if v1.version_number < v2.version_number:
+                ver_map = {ver.id: ver.version_number for ver in dataset.versions}
+                relevant_transformations = [
+                    t for t in all_trans
+                    if ver_map.get(t.result_version_id, 0) > v1.version_number
+                    and ver_map.get(t.result_version_id, 0) <= v2.version_number
+                ]
+            else:
+                relevant_transformations = all_trans
 
         return VersionComparisonResponse(
             dataset_id=dataset_id,
@@ -238,9 +368,10 @@ class ComparisonService:
             v2=DatasetVersionResponse.model_validate(v2),
             score_comparison=score_comp,
             metrics=metrics,
+            column_stats=column_stats_list,
             findings_diff=findings_diff,
             column_changes=column_changes,
-            transformations=[TransformationResponse.model_validate(t) for t in transformations],
+            transformations=[TransformationResponse.model_validate(t) for t in relevant_transformations],
         )
 
     def _get_or_run_audit(

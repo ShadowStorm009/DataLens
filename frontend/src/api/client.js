@@ -134,10 +134,21 @@ export async function deleteDataset(datasetId) {
 /**
  * Trigger an audit run for a dataset version
  */
-export async function runAudit(datasetId, targetColumn = null, versionId = null) {
+export async function runAudit(datasetId, targetColumnOrOptions = null, versionId = null) {
   const body = {};
-  if (targetColumn) body.target_column = targetColumn;
-  if (versionId) body.version_id = versionId;
+  if (typeof targetColumnOrOptions === 'object' && targetColumnOrOptions !== null) {
+    if (targetColumnOrOptions.target_column || targetColumnOrOptions.targetColumn) {
+      body.target_column = targetColumnOrOptions.target_column || targetColumnOrOptions.targetColumn;
+    }
+    if (targetColumnOrOptions.version_id || targetColumnOrOptions.versionId) {
+      body.version_id = targetColumnOrOptions.version_id || targetColumnOrOptions.versionId;
+    }
+  } else if (typeof targetColumnOrOptions === 'string' && targetColumnOrOptions.length === 36 && targetColumnOrOptions.includes('-') && !versionId) {
+    body.version_id = targetColumnOrOptions;
+  } else {
+    if (targetColumnOrOptions) body.target_column = targetColumnOrOptions;
+    if (versionId) body.version_id = versionId;
+  }
 
   return apiClient(`/datasets/${datasetId}/audits`, {
     method: 'POST',

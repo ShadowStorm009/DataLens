@@ -13,10 +13,10 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 02:20 IST
+- **Last updated:** 2026-10-27 09:55 IST
 - **Branch:** `main`
-- **HEAD commit:** `cc10651` (All 12 phases complete and committed)
-- **Git status:** Clean build, 74 automated pytest tests passing in 3.92s, 0 frontend build errors.
+- **HEAD commit:** `325bd61` (Version tracking & comparisons updated)
+- **Git status:** Clean build, 77 automated pytest tests passing in 2.12s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
@@ -39,13 +39,13 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **CSV upload & validation** | VERIFIED | `backend/app/services/csv_validator.py`, `backend/app/api/routes/datasets.py`, `frontend/src/components/UploadSection.jsx` | Server-side size check (10MB limit), encoding detection, empty check, malformed CSV rejection, duplicate header sanitization, leading zeros preservation, drag-and-drop & file picker UI | None | `backend/tests/test_upload_and_preview.py` 10 passed (valid CSV, empty, malformed, oversized 413, duplicate headers, leading zeros, orphan prevention) |
 | **Dataset preview & profile** | VERIFIED | `backend/app/audit/profiling.py`, `backend/app/api/routes/datasets.py`, `frontend/src/components/ProfileView.jsx`, `frontend/src/components/PreviewModal.jsx` | Reusable `ProfilingEngine` computing dataset and column statistics (numeric, categorical, datetime, boolean, text); type inference heuristics; bounded top-N values; caching tied to immutable versions; bounded preview modal; full responsive `ProfileView` | None | `backend/tests/test_profiling.py` 3 passed (hand-calculated values, edge cases resilience, caching & endpoint) |
 | **Audit rules & findings** | VERIFIED | `backend/app/audit/rules/`, `backend/app/audit/engine.py`, `backend/app/schemas/audit.py`, `backend/app/api/routes/audits.py` | 8 deterministic rules implemented (missing values, exact duplicates, constant columns, high cardinality heuristic, Tukey IQR outliers, type inconsistency, class imbalance, potential leakage heuristic); documented configurable thresholds; rule failure resilience; persistence of `AuditRun` and `Finding` rows | None | `backend/tests/test_audit_rules.py` 14 passed (individual rule positive/negative tests, determinism, non-mutating verification, configurable thresholds, API execution, filtering) |
-| **Quality score & dashboard** | VERIFIED | `backend/app/audit/scoring.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/FindingDetailDrawer.jsx`, `frontend/src/App.jsx` | Transparent 0–100 score with component penalty breakdown; method v1.0 tracking; disclaimer; severity KPI badges; interactive filtering by severity, rule, and column; keyword search; slide-out finding detail drawer with structured evidence JSON; integrated column profile table | None | `backend/tests/test_quality_score.py` 6 passed; Vite frontend build passing with 0 errors |
+| **Quality score & dashboard** | VERIFIED | `backend/app/audit/scoring.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/FindingDetailDrawer.jsx`, `frontend/src/App.jsx` | Transparent 0–100 score with component penalty breakdown; method v1.0 tracking; disclaimer; severity KPI badges; interactive filtering by severity, rule, and column; keyword search; slide-out finding detail drawer with structured evidence JSON; integrated column profile table; version selector with version-targeted re-audits | None | `backend/tests/test_quality_score.py` 6 passed; Vite frontend build passing with 0 errors |
 | **Cleaning preview** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Non-mutating preview API & UI for median/mode imputation, duplicate removal, constant column drop; returns bounded sample diffs, row/cell deltas without modifying stored data | None | `backend/tests/test_transformations.py` 12 passed (median, mode, duplicate, constant col, immutability, preview/apply parity) |
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Applying calls same transformation engine; persists new immutable `DatasetVersion` (v2, v3, etc.); records `Transformation` history row with parameters and metrics; auto-triggers re-audit in dashboard | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
-| **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells, duplicates, row/col counts, severity counts); findings transition diff (resolved/unresolved/new); schema column additions/drops; transformation lineage timeline; re-audit on demand | None | `backend/tests/test_comparison.py` 6 passed |
+| **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
 | **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Version-specific CSV download; formula injection prevention (`safe_mode=true` prepending `'`); standalone self-contained HTML audit report; structured machine-readable JSON report; direct UI export triggers | None | `backend/tests/test_export.py` 6 passed |
 | **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/tests/test_reliability.py` | DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; consistent 404/422 error envelopes; path traversal attacks strictly blocked; partial transformation failures rolled back safely | None | `backend/tests/test_reliability.py` 5 passed |
-| **Automated tests** | VERIFIED | `backend/tests/` | 74 automated tests covering health, persistence, upload, preview, profiling, 8 audit rules, quality scoring, transformations, comparisons, exports, reliability, and full E2E lifecycle | None | 74 passed in 3.92s |
+| **Automated tests** | VERIFIED | `backend/tests/` | 77 automated tests covering health, persistence, upload, preview, profiling, 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports, reliability, and full E2E lifecycle | None | 77 passed in 2.12s |
 | **README & deployment** | VERIFIED | `README.md`, `docs/DECISIONS.md`, `.env.example` | Architecture diagrams, complete local setup instructions, production build instructions, core invariants, and explicit PRD limitations documented | None | Setup and build verified locally |
 | **Demo and final submission checklist** | VERIFIED | `sample_datasets/demo_dirty_dataset.csv`, `sample_datasets/README.md`, `backend/tests/test_e2e_workflow.py` | Reproducible 20-row sample CSV with known defects across all 8 audit rules, walkthrough guide, and automated E2E lifecycle test verifying upload->profile->audit->preview->apply(v2,v3,v4)->compare->export | None | `test_full_datalens_e2e_lifecycle` PASSED |
 
@@ -241,4 +241,31 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
   - Built comprehensive integration test `backend/tests/test_e2e_workflow.py` executing the complete 10-step lifecycle: Upload -> Profile -> Audit -> Preview -> Apply (v2, v3, v4) -> Compare -> Export (CSV & HTML/JSON).
   - Verified 74/74 tests passing in 3.92s and clean production frontend build in 1.64s.
 - **Tests/results:** All 74 automated tests passed; frontend build succeeded.
-- **Next action:** Commit Phase 11 & 12 changes, finalize README, and verify clean tree.
+- **Commit:** `cc10651`
+
+### 2026-10-27 — Version Tracking and Before/After Comparison Polish
+- **Goal:** Comprehensive implementation and verification of version tracking, before/after comparisons, column statistics, configuration checks, empty states, and ancestry tests.
+- **Changes:**
+  - Added `ColumnStatComparisonItem` to `backend/app/schemas/comparison.py` and `column_stats` to `VersionComparisonResponse`.
+  - Added `v1_target_column`, `v2_target_column`, `audit_config_compatible`, and `audit_config_note` to `ScoreComparisonResponse` to verify audit configuration compatibility across versions.
+  - Added `missing_percentage` and `duplicate_percentage` deltas to comparison `metrics`.
+  - Updated `backend/app/services/comparison.py` to compute column statistics (type, null count, null %, distinct count, numeric mean, numeric median), calculate percentage deltas, check audit configuration compatibility, and scope transformation lineage chronologically.
+  - Updated `frontend/src/api/client.js` `runAudit` to flexibly handle options object and versionId.
+  - Updated `frontend/src/components/CompareView.jsx`:
+    - Added single-version dataset empty state guiding users to Clean & Transform.
+    - Added self-comparison notice banner when comparing identical versions.
+    - Added Relevant Column Statistics comparison table.
+    - Added Missing Percentage and Duplicate Percentage KPI delta cards.
+    - Added audit configuration difference notice alert.
+    - Added separate "Re-Audit V1" and "Re-Audit V2" buttons.
+    - Ensured unresolved findings remain clearly visible in findings transition tabs.
+  - Updated `frontend/src/components/AuditDashboard.jsx`:
+    - Added Version Selector dropdown in header bar.
+    - Linked quality score card to exact audited version ID with timestamp.
+    - Enabled re-auditing against currently selected version.
+  - Added 3 new tests in `backend/tests/test_comparison.py`:
+    - `test_version_ancestry_tracking`: multi-step cleaning pipeline, parent_version_id chaining, distinct storage files, chronological transformation lineage.
+    - `test_audit_version_association`: linking audits to exact versions, detecting differing target_column configurations.
+    - `test_comparison_calculations_percentages_and_column_stats`: missing/duplicate percentage deltas, column stats (nulls, distinct, mean), unresolved findings retention.
+- **Tests/results:** 77/77 tests passed in 2.12s; production Vite build passed in 809ms (0 errors).
+- **Next action:** Commit version tracking and comparison improvements.

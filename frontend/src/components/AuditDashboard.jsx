@@ -1,8 +1,10 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   runAudit,
   listAudits,
   getAudit,
   getDatasetProfile,
+  listVersions,
   getExportCsvUrl,
   getExportReportUrl,
   downloadFileFromUrl,
@@ -11,6 +13,8 @@ import FindingDetailDrawer from './FindingDetailDrawer';
 import CleaningPanel from './CleaningPanel';
 
 export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onSwitchToPreview, onSwitchToCompare }) {
+  const [versions, setVersions] = useState([]);
+  const [selectedVersionId, setSelectedVersionId] = useState(dataset.current_version_id);
   const [audit, setAudit] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,26 +35,33 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const [searchQuery, setSearchQuery] = useState('');
   const [targetColumn, setTargetColumn] = useState('');
 
-  // Fetch or trigger initial audit
-  const loadAuditData = useCallback(async () => {
+  // Fetch or trigger audit for a specific version
+  const loadAuditData = useCallback(async (vId = null) => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Fetch profile to get dataset dimensions and column profile metrics
-      const prof = await getDatasetProfile(dataset.id, dataset.current_version_id);
+      // 1. Fetch versions list
+      const vers = await listVersions(dataset.id);
+      setVersions(vers);
+
+      const targetVer = vId || selectedVersionId || dataset.current_version_id;
+      setSelectedVersionId(targetVer);
+
+      // 2. Fetch profile to get dataset dimensions and column profile metrics
+      const prof = await getDatasetProfile(dataset.id, targetVer);
       setProfile(prof);
 
-      // 2. Fetch existing audits
-      const auditListRes = await listAudits(dataset.id, dataset.current_version_id);
+      // 3. Fetch existing audits for this exact version
+      const auditListRes = await listAudits(dataset.id, targetVer);
       if (auditListRes.audits && auditListRes.audits.length > 0) {
-        // Retrieve full details of the most recent audit
+        // Retrieve full details of the most recent audit for this version
         const latestAuditId = auditListRes.audits[0].id;
         const fullAudit = await getAudit(dataset.id, latestAuditId);
         setAudit(fullAudit);
       } else {
-        // No audit exists yet; automatically run an initial audit!
+        // No audit exists yet; automatically run an initial audit on this version!
         setRunningAudit(true);
-        const newAudit = await runAudit(dataset.id);
+        const newAudit = await runAudit(dataset.id, { versionId: targetVer });
         setAudit(newAudit);
       }
     } catch (err) {
@@ -59,17 +70,25 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
       setLoading(false);
       setRunningAudit(false);
     }
-  }, [dataset.id, dataset.current_version_id]);
+  }, [dataset.id, dataset.current_version_id, selectedVersionId]);
 
   useEffect(() => {
     loadAuditData();
   }, [loadAuditData]);
 
+  const handleVersionChange = (newVId) => {
+    setSelectedVersionId(newVId);
+    loadAuditData(newVId);
+  };
+
   const handleRunNewAudit = async () => {
     setRunningAudit(true);
     setError(null);
     try {
-      const newAudit = await runAudit(dataset.id, targetColumn ? targetColumn : null);
+      const newAudit = await runAudit(dataset.id, {
+        targetColumn: targetColumn || null,
+        versionId: selectedVersionId,
+      });
       setAudit(newAudit);
     } catch (err) {
       setError(err.message || 'Failed to execute audit run');
@@ -126,6 +145,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const handleTransformationApplied = async (res) => {
     if (res.result_version_id) {
       dataset.current_version_id = res.result_version_id;
+      setSelectedVersionId(res.result_version_id);
     }
     if (res.result_version) {
       dataset.row_count = res.result_version.row_count;
@@ -136,7 +156,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
     );
     setShowCleaningPanel(false);
     // Automatically re-run audit on the newly created version!
-    await loadAuditData();
+    await loadAuditData(res.result_version_id);
   };
 
   return (
@@ -153,6 +173,26 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Original file: <code>{dataset.original_filename}</code> &bull; Rows: {dataset.row_count.toLocaleString()} &bull; Columns: {dataset.column_count}
           </div>
+          {versions.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <label style={{ fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>Inspecting Version:</label>
+              <select
+                className="select-field"
+                value={selectedVersionId}
+                onChange={(e) => handleVersionChange(e.target.value)}
+                disabled={runningAudit || loading}
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.825rem' }}
+              >
+                {versions.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    Version {v.version_number} ({v.row_count} rows, {v.column_count} cols)
+                    {v.version_number === 1 ? ' [Initial Upload]' : ''}
+                    {v.id === dataset.current_version_id ? ' [Latest]' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -298,11 +338,15 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' }}>
             {/* Score & Breakdown Card */}
             <div className="card" style={{ marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>Quality Score</span>
                 <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
                   Method v{audit?.score_method_version || '1.0'}
                 </span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '1rem' }}>
+                Target Version: <strong>Version {versions.find(v => v.id === audit?.version_id)?.version_number || 1}</strong>
+                {audit?.version_id && <span> (<code>{audit.version_id.slice(0, 8)}...</code>)</span>}
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1rem' }}>
@@ -369,7 +413,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
                   Audit Execution Controls
                 </div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Re-evaluate quality rules against current version. Optionally designate a target column to detect class imbalance and feature leakage.
+                  Re-evaluate quality rules against <strong>Version {versions.find(v => v.id === selectedVersionId)?.version_number || 1}</strong>. Optionally designate a target column to detect class imbalance and feature leakage.
                 </p>
 
                 <div style={{ marginBottom: '1rem' }}>
@@ -399,7 +443,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
                   onClick={handleRunNewAudit}
                   disabled={runningAudit}
                 >
-                  {runningAudit ? 'Auditing in Progress...' : 'Run Audit'}
+                  {runningAudit ? 'Auditing in Progress...' : `Run Audit on Version ${versions.find(v => v.id === selectedVersionId)?.version_number || 1}`}
                 </button>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '0.5rem' }}>
                   Audit ran at: {audit?.created_at ? new Date(audit.created_at).toLocaleTimeString() : 'N/A'}

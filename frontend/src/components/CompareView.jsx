@@ -87,7 +87,7 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
     setReAuditing(true);
     setError(null);
     try {
-      await runAudit(datasetId, targetVersionId);
+      await runAudit(datasetId, { versionId: targetVersionId });
       await performComparison(v1Id, v2Id);
       const histData = await getVersionHistory(datasetId);
       setHistory(histData);
@@ -120,11 +120,46 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
     );
   }
 
+  // Requirement 8: Clear empty states if a comparison cannot be made
+  if (versions.length <= 1) {
+    return (
+      <div className="compare-view">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div>
+            <button className="btn btn-outline" onClick={onBackToAudit} style={{ marginRight: '0.75rem' }}>
+              ← Back to Audit Dashboard
+            </button>
+            <button className="btn btn-outline" onClick={onBackToDatasets}>
+              All Datasets
+            </button>
+          </div>
+        </div>
+
+        <div className="card text-center" style={{ padding: '3rem', maxWidth: '640px', margin: '2rem auto' }}>
+          <h3 style={{ marginBottom: '0.75rem', color: '#0f172a' }}>Single Version Dataset</h3>
+          <p style={{ color: '#64748b', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+            This dataset currently only has the original uploaded version (Version 1).
+            To compare versions side-by-side, open the <strong>Clean & Transform</strong> panel to apply a cleaning operation (such as removing duplicates, imputing missing values, or dropping constant columns), which will create a child version for comparison.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+            <button className="btn btn-primary" onClick={onBackToAudit}>
+              Go to Clean & Transform
+            </button>
+            <button className="btn btn-outline" onClick={onBackToDatasets}>
+              All Datasets
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const scoreComp = comparison?.score_comparison;
   const metrics = comparison?.metrics || {};
   const findingsDiff = comparison?.findings_diff;
   const colChanges = comparison?.column_changes;
   const transformations = comparison?.transformations || [];
+  const columnStats = comparison?.column_stats || [];
 
   return (
     <div className="compare-view">
@@ -138,15 +173,25 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
             All Datasets
           </button>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.875rem', color: '#64748b' }}>Versions available: <strong>{versions.length}</strong></span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.875rem', color: '#64748b' }}>Versions: <strong>{versions.length}</strong></span>
+          <button
+            className="btn btn-outline"
+            onClick={() => handleReAudit(v1Id)}
+            disabled={reAuditing || comparing}
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+            title="Re-run deterministic audit on baseline version"
+          >
+            {reAuditing ? 'Auditing...' : `↻ Re-Audit V${comparison?.v1?.version_number || 1}`}
+          </button>
           <button
             className="btn btn-outline"
             onClick={() => handleReAudit(v2Id)}
             disabled={reAuditing || comparing}
             style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+            title="Re-run deterministic audit on comparison version"
           >
-            {reAuditing ? 'Auditing...' : '↻ Re-Audit Selected'}
+            {reAuditing ? 'Auditing...' : `↻ Re-Audit V${comparison?.v2?.version_number || 2}`}
           </button>
           <button
             className="btn btn-outline"
@@ -221,6 +266,12 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
         </div>
       </div>
 
+      {v1Id === v2Id && (
+        <div className="alert alert-info" style={{ marginBottom: '1.5rem' }}>
+          <strong>Self-Comparison Mode:</strong> You are currently comparing Version {comparison?.v1?.version_number || 1} against itself. All metric deltas are zero. Select a different comparison version above to inspect before/after deltas.
+        </div>
+      )}
+
       {comparing && (
         <div className="card text-center" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
           <p>Computing deterministic version comparison and metric deltas...</p>
@@ -232,15 +283,21 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
           {/* Quality Score Comparison Card */}
           <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.2rem', color: '#0f172a' }}>
-              Quality Score Comparison
+              Quality Score & Methodology Comparison
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', alignItems: 'center' }}>
               <div style={{ textAlign: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>Baseline Score (V{comparison.v1.version_number})</div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                  Baseline Score (V{comparison.v1.version_number})
+                </div>
                 <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#1e293b' }}>
                   {scoreComp?.v1_score !== null ? `${scoreComp.v1_score}` : 'N/A'}
                   <span style={{ fontSize: '1rem', color: '#94a3b8' }}>/100</span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                  Method: v{scoreComp?.v1_method}
+                  {scoreComp?.v1_target_column && ` • Target: ${scoreComp.v1_target_column}`}
                 </div>
               </div>
 
@@ -250,18 +307,37 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
                   {formatDelta(scoreComp?.delta, ' pts')}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
-                  {scoreComp?.delta > 0 ? 'Quality Improved' : scoreComp?.delta < 0 ? 'Quality Regressed' : 'No Change'}
+                  {scoreComp?.delta > 0 ? (
+                    <span style={{ color: '#10b981', fontWeight: 600 }}>Measured Heuristic Improvement</span>
+                  ) : scoreComp?.delta < 0 ? (
+                    <span style={{ color: '#ef4444', fontWeight: 600 }}>Measured Heuristic Regression</span>
+                  ) : (
+                    'No Measured Change'
+                  )}
                 </div>
               </div>
 
               <div style={{ textAlign: 'center', padding: '1rem', background: '#f8fafc', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>Comparison Score (V{comparison.v2.version_number})</div>
+                <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                  Comparison Score (V{comparison.v2.version_number})
+                </div>
                 <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#0284c7' }}>
                   {scoreComp?.v2_score !== null ? `${scoreComp.v2_score}` : 'N/A'}
                   <span style={{ fontSize: '1rem', color: '#94a3b8' }}>/100</span>
                 </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.25rem' }}>
+                  Method: v{scoreComp?.v2_method}
+                  {scoreComp?.v2_target_column && ` • Target: ${scoreComp.v2_target_column}`}
+                </div>
               </div>
             </div>
+
+            {/* Incompatible Audit Configuration Warning */}
+            {scoreComp?.audit_config_compatible === false && (
+              <div className="alert alert-warning" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
+                <strong>Configuration Difference:</strong> {scoreComp.audit_config_note}
+              </div>
+            )}
 
             {/* Penalties Breakdown Comparison */}
             {scoreComp?.penalties_v1 && scoreComp?.penalties_v2 && (
@@ -312,7 +388,7 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
             <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#0f172a' }}>
               Summary Metric Deltas
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
               <div className="kpi-card">
                 <div className="kpi-title">Row Count</div>
                 <div className="kpi-value">{metrics.row_count?.v2_value}</div>
@@ -340,12 +416,32 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
               </div>
 
               <div className="kpi-card">
+                <div className="kpi-title">Missing Percentage</div>
+                <div className="kpi-value" style={{ color: metrics.missing_percentage?.v2_value === 0 ? '#10b981' : '#f59e0b' }}>
+                  {metrics.missing_percentage?.v2_value}%
+                </div>
+                <div className="kpi-subtitle">
+                  from {metrics.missing_percentage?.v1_value}% ({formatDelta(metrics.missing_percentage?.delta, '%', true)})
+                </div>
+              </div>
+
+              <div className="kpi-card">
                 <div className="kpi-title">Duplicate Rows</div>
                 <div className="kpi-value" style={{ color: metrics.duplicate_rows?.v2_value === 0 ? '#10b981' : '#f59e0b' }}>
                   {metrics.duplicate_rows?.v2_value}
                 </div>
                 <div className="kpi-subtitle">
                   from {metrics.duplicate_rows?.v1_value} ({formatDelta(metrics.duplicate_rows?.delta, '', true)})
+                </div>
+              </div>
+
+              <div className="kpi-card">
+                <div className="kpi-title">Duplicate Percentage</div>
+                <div className="kpi-value" style={{ color: metrics.duplicate_percentage?.v2_value === 0 ? '#10b981' : '#f59e0b' }}>
+                  {metrics.duplicate_percentage?.v2_value}%
+                </div>
+                <div className="kpi-subtitle">
+                  from {metrics.duplicate_percentage?.v1_value}% ({formatDelta(metrics.duplicate_percentage?.delta, '%', true)})
                 </div>
               </div>
 
@@ -368,6 +464,129 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
               </div>
             </div>
           </div>
+
+          {/* Column Statistics Comparison */}
+          {columnStats.length > 0 && (
+            <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+              <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#0f172a' }}>
+                Relevant Column Statistics Comparison
+              </h3>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr>
+                      <th>Column</th>
+                      <th>Status</th>
+                      <th>Type (V1 &rarr; V2)</th>
+                      <th style={{ textAlign: 'right' }}>Missing Cells</th>
+                      <th style={{ textAlign: 'right' }}>Missing %</th>
+                      <th style={{ textAlign: 'right' }}>Distinct Values</th>
+                      <th style={{ textAlign: 'right' }}>Mean (V1 &rarr; V2)</th>
+                      <th style={{ textAlign: 'right' }}>Median (V1 &rarr; V2)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {columnStats.map((cs) => {
+                      const isRemoved = cs.status === 'removed';
+                      const isAdded = cs.status === 'added';
+                      return (
+                        <tr key={cs.column_name}>
+                          <td>
+                            <strong>{cs.column_name}</strong>
+                          </td>
+                          <td>
+                            {isRemoved && <span className="badge badge-danger">Dropped</span>}
+                            {isAdded && <span className="badge badge-success">Added</span>}
+                            {!isRemoved && !isAdded && <span className="badge badge-outline">Retained</span>}
+                          </td>
+                          <td>
+                            {isRemoved ? (
+                              <code>{cs.v1_type}</code>
+                            ) : isAdded ? (
+                              <code>{cs.v2_type}</code>
+                            ) : (
+                              <span>
+                                <code>{cs.v1_type}</code>
+                                {cs.v1_type !== cs.v2_type && <span> &rarr; <code>{cs.v2_type}</code></span>}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isRemoved ? (
+                              `${cs.v1_null_count}`
+                            ) : isAdded ? (
+                              `${cs.v2_null_count}`
+                            ) : (
+                              <span>
+                                {cs.v1_null_count} &rarr; {cs.v2_null_count}{' '}
+                                {formatDelta(cs.null_count_delta, '', true)}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isRemoved ? (
+                              `${cs.v1_null_percentage}%`
+                            ) : isAdded ? (
+                              `${cs.v2_null_percentage}%`
+                            ) : (
+                              <span>
+                                {cs.v1_null_percentage}% &rarr; {cs.v2_null_percentage}%{' '}
+                                {formatDelta(cs.null_percentage_delta, '%', true)}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {isRemoved ? (
+                              `${cs.v1_distinct_count}`
+                            ) : isAdded ? (
+                              `${cs.v2_distinct_count}`
+                            ) : (
+                              <span>
+                                {cs.v1_distinct_count} &rarr; {cs.v2_distinct_count}{' '}
+                                {formatDelta(cs.distinct_count_delta, '')}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {cs.v1_mean !== null || cs.v2_mean !== null ? (
+                              isRemoved ? (
+                                `${cs.v1_mean}`
+                              ) : isAdded ? (
+                                `${cs.v2_mean}`
+                              ) : (
+                                <span>
+                                  {cs.v1_mean ?? '—'} &rarr; {cs.v2_mean ?? '—'}{' '}
+                                  {cs.mean_delta !== null && formatDelta(cs.mean_delta)}
+                                </span>
+                              )
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {cs.v1_median !== null || cs.v2_median !== null ? (
+                              isRemoved ? (
+                                `${cs.v1_median}`
+                              ) : isAdded ? (
+                                `${cs.v2_median}`
+                              ) : (
+                                <span>
+                                  {cs.v1_median ?? '—'} &rarr; {cs.v2_median ?? '—'}{' '}
+                                  {cs.median_delta !== null && formatDelta(cs.median_delta)}
+                                </span>
+                              )
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Column Structure Changes */}
           {colChanges && (colChanges.added.length > 0 || colChanges.removed.length > 0) && (
@@ -502,10 +721,10 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
           </div>
 
           {/* Transformation Timeline */}
-          {transformations.length > 0 && (
+          {transformations.length > 0 ? (
             <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
               <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#0f172a' }}>
-                Applied Transformation Lineage
+                How This Cleaned Version Was Produced (Transformation Lineage)
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {transformations.map((t, index) => (
@@ -538,6 +757,12 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
                 ))}
               </div>
             </div>
+          ) : (
+            v1Id !== v2Id && (
+              <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem', color: '#64748b', fontSize: '0.85rem' }}>
+                <em>No intermediate transformations recorded between selected versions.</em>
+              </div>
+            )
           )}
 
           {/* Disclaimer Banner */}
