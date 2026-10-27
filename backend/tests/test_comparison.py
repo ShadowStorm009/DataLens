@@ -9,8 +9,6 @@ from backend.app.services.cleaner import TransformationEngine
 from backend.app.audit.engine import AuditEngine
 from backend.app.core.errors import ResourceNotFoundError
 
-client = TestClient(app)
-
 def test_compare_versions_service(db_session, isolated_storage):
     """Test comparing v1 and transformed v2 at the service level."""
     comparison_service = ComparisonService(dataset_service=dataset_service)
@@ -147,7 +145,7 @@ def test_compare_with_dropped_column(db_session, isolated_storage):
     assert comp.column_changes.common == ["num"]
     assert comp.metrics["column_count"].delta == -1
 
-def test_compare_endpoint_via_client():
+def test_compare_endpoint_via_client(client: TestClient):
     """Test HTTP GET /api/v1/datasets/{id}/compare endpoint."""
     csv_content = b"a,b\n1,x\n1,x\n2,y\n"
     upload_res = client.post(
@@ -177,7 +175,7 @@ def test_compare_endpoint_via_client():
     assert "disclaimer" in data
     assert data["metrics"]["duplicate_rows"]["improved"] is True
 
-def test_version_history_endpoint():
+def test_version_history_endpoint(client: TestClient):
     """Test HTTP GET /api/v1/datasets/{id}/history endpoint."""
     csv_content = b"x,y\n10,20\n30,40\n"
     upload_res = client.post(
@@ -197,7 +195,7 @@ def test_version_history_endpoint():
     assert v1_entry["row_count"] == 2
     assert v1_entry["column_count"] == 2
 
-def test_compare_nonexistent_version_returns_404():
+def test_compare_nonexistent_version_returns_404(client: TestClient):
     """Test 404 response when querying invalid version IDs."""
     csv_content = b"m,n\n1,2\n"
     upload_res = client.post(

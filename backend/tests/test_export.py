@@ -7,8 +7,6 @@ from backend.app.services.dataset_service import dataset_service
 from backend.app.services.export import export_service
 from backend.app.audit.engine import AuditEngine
 
-client = TestClient(app)
-
 def test_export_csv_standard(db_session, isolated_storage):
     """Test standard CSV export for a specific version."""
     csv_bytes = b"id,name,role\n1,Alice,Engineer\n2,Bob,Designer\n"
@@ -138,7 +136,7 @@ def test_export_json_report(db_session, isolated_storage):
     assert "findings" in report_data
     assert "disclaimer" in report_data
 
-def test_export_api_endpoints_via_client():
+def test_export_api_endpoints_via_client(client: TestClient):
     """Test HTTP GET endpoints for CSV and report downloads."""
     csv_content = b"x,y\n100,200\n300,400\n"
     upload_res = client.post(
@@ -182,7 +180,7 @@ def test_export_api_endpoints_via_client():
     latest_report_res = client.get(f"/api/v1/datasets/{dataset_id}/report?format=html")
     assert latest_report_res.status_code == 200
 
-def test_export_invalid_version_returns_404():
+def test_export_invalid_version_returns_404(client: TestClient):
     """Test 404 response when querying invalid version or audit IDs."""
     csv_content = b"a,b\n1,2\n"
     upload_res = client.post(
@@ -375,7 +373,7 @@ def test_audit_report_with_before_after_comparison_child_version(db_session, iso
     assert "RESOLVED" in html_report
     assert "Spreadsheet Export Safety:" in html_report
 
-def test_export_version_report_endpoint():
+def test_export_version_report_endpoint(client: TestClient):
     """Test GET /datasets/{id}/versions/{v_id}/report endpoint."""
     csv_content = b"k,v\n1,10\n2,20\n"
     upload_res = client.post(
@@ -396,7 +394,7 @@ def test_export_version_report_endpoint():
     assert "attachment" in rep_res.headers["content-disposition"]
     assert "<!DOCTYPE html>" in rep_res.text
 
-def test_export_unsupported_format_returns_400():
+def test_export_unsupported_format_returns_400(client: TestClient):
     """Test that requesting an unsupported format like PDF returns HTTP 400 ValidationError."""
     csv_content = b"a,b\n1,2\n"
     upload_res = client.post(

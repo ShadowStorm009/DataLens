@@ -1,13 +1,9 @@
 import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
-from backend.app.main import app
-
-client = TestClient(app)
-
 DEMO_CSV_PATH = Path(__file__).resolve().parent.parent.parent / "sample_datasets" / "demo_dirty_dataset.csv"
 
-def test_full_datalens_e2e_lifecycle():
+def test_full_datalens_e2e_lifecycle(client: TestClient):
     """
     End-to-End Walkthrough:
     Upload CSV -> Profile -> Audit -> Inspect Findings -> Preview -> Apply (v2, v3, v4) -> Compare -> Export.

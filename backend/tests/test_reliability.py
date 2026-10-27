@@ -7,8 +7,6 @@ from backend.app.services.dataset_service import dataset_service
 from backend.app.services.storage import StorageService
 from backend.app.core.errors import FileValidationError, ResourceNotFoundError
 
-client = TestClient(app)
-
 def test_deletion_cleans_csvs_and_profile_caches(db_session, isolated_storage):
     """Verify that deleting a dataset cleans up physical CSV files and profile cache files."""
     csv_bytes = b"a,b\n1,2\n3,4\n"
@@ -38,7 +36,7 @@ def test_deletion_cleans_csvs_and_profile_caches(db_session, isolated_storage):
     assert not csv_path.exists()
     assert not cache_path.exists()
 
-def test_missing_resource_ids_return_404():
+def test_missing_resource_ids_return_404(client: TestClient):
     """Verify consistent 404 responses across all resource endpoints."""
     bad_id = "00000000-0000-0000-0000-000000000000"
 
@@ -72,7 +70,7 @@ def test_path_traversal_blocked(isolated_storage):
         with pytest.raises(Exception):
             isolated_storage.get_absolute_path(ref)
 
-def test_partial_transformation_failure_preserves_version():
+def test_partial_transformation_failure_preserves_version(client: TestClient):
     """Verify that an invalid transformation does not advance or corrupt dataset.current_version_id."""
     csv_content = b"col1,col2\n10,20\n30,40\n"
     upload_res = client.post(
@@ -99,7 +97,7 @@ def test_partial_transformation_failure_preserves_version():
     assert reloaded["current_version_id"] == initial_version_id
     assert reloaded["row_count"] == initial_row_count
 
-def test_error_envelope_consistency():
+def test_error_envelope_consistency(client: TestClient):
     """Verify consistent error format for 400 and 422 errors."""
     # Invalid upload (empty bytes) returns 422
     res = client.post(
@@ -112,7 +110,7 @@ def test_error_envelope_consistency():
     assert "message" in err_json
     assert "details" in err_json
 
-def test_http_exception_and_method_not_allowed_envelope():
+def test_http_exception_and_method_not_allowed_envelope(client: TestClient):
     """Verify standard Starlette HTTPExceptions (e.g., 405 Method Not Allowed) return the uniform envelope."""
     # DELETE on /health is not allowed
     res = client.delete("/health")
@@ -122,7 +120,7 @@ def test_http_exception_and_method_not_allowed_envelope():
     assert "Method Not Allowed" in err_json["message"]
     assert isinstance(err_json["details"], dict)
 
-def test_request_validation_error_envelope():
+def test_request_validation_error_envelope(client: TestClient):
     """Verify FastAPI RequestValidationError (422) returns uniform envelope with error details."""
     # POST to transformations preview with empty/malformed json payload
     res = client.post(
@@ -198,7 +196,7 @@ def test_rollback_on_failed_version_creation_cleans_file(db_session, isolated_st
     after_csvs = set(isolated_storage.base_dir.glob("*.csv"))
     assert after_csvs == created_csvs
 
-def test_delete_dataset_endpoint_full_lifecycle():
+def test_delete_dataset_endpoint_full_lifecycle(client: TestClient):
     """Verify DELETE /api/v1/datasets/{id} deletes DB records, cache, and files, and returns 200."""
     csv_bytes = b"x,y\n1,2\n3,4\n"
     upload_res = client.post(

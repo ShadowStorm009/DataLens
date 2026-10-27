@@ -3,13 +3,9 @@ import io
 from pathlib import Path
 from fastapi.testclient import TestClient
 import pandas as pd
-from backend.app.main import app
-
-client = TestClient(app)
-
 FIXTURE_PATH = Path(__file__).resolve().parent.parent.parent / "sample_datasets" / "datalens_test_dataset.csv"
 
-def test_qa_comprehensive_workflow():
+def test_qa_comprehensive_workflow(client: TestClient):
     """
     Comprehensive QA verification test exercising all 31 workflow points:
     - Dataset Management: Upload, listing, pagination, metadata

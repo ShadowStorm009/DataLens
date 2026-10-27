@@ -58,8 +58,8 @@ def isolated_storage(test_temp_dir):
     dataset_service._storage = original_storage
 
 @pytest.fixture
-def client(db_session):
-    """Provides a TestClient overriding the get_db dependency."""
+def client(db_session, isolated_storage):
+    """Provides a TestClient overriding the get_db dependency and isolating storage."""
     def override_get_db():
         try:
             yield db_session
