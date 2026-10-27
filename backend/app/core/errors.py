@@ -40,6 +40,9 @@ class StorageError(DataLensError):
     def __init__(self, message: str = "Storage error occurred", details: Optional[Dict[str, Any]] = None):
         super().__init__(message, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, details=details)
 
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
+
 def register_error_handlers(app: FastAPI) -> None:
     """Register custom exception handlers with the FastAPI application."""
 
@@ -51,5 +54,27 @@ def register_error_handlers(app: FastAPI) -> None:
                 "error": exc.__class__.__name__,
                 "message": exc.message,
                 "details": exc.details,
+            },
+        )
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": "HTTPException",
+                "message": exc.detail if isinstance(exc.detail, str) else str(exc.detail),
+                "details": {},
+            },
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": "RequestValidationError",
+                "message": "Invalid request payload or parameters",
+                "details": {"errors": exc.errors()},
             },
         )

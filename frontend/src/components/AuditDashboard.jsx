@@ -28,6 +28,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const [exporting, setExporting] = useState(false);
 
   const handleDownload = async (url) => {
+    if (exporting) return;
     setExporting(true);
     setExportError(null);
     setShowExportMenu(false);
@@ -97,6 +98,7 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   };
 
   const handleRunNewAudit = async () => {
+    if (runningAudit) return;
     setRunningAudit(true);
     setError(null);
     try {

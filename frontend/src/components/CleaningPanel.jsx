@@ -26,6 +26,7 @@ export default function CleaningPanel({ dataset, profile, onTransformationApplie
 
   const handlePreview = async (e) => {
     e.preventDefault();
+    if (previewLoading || applyLoading) return;
     if (requiresColumn && !selectedColumn) {
       setError('Please select a target column for this operation.');
       return;
@@ -51,6 +52,7 @@ export default function CleaningPanel({ dataset, profile, onTransformationApplie
   };
 
   const handleApply = async () => {
+    if (applyLoading) return;
     // If destructive operation (drop column or remove duplicates), require explicit confirmation
     if ((operationType === 'drop_constant_column' || operationType === 'remove_duplicates') && !confirmApply) {
       setConfirmApply(true);

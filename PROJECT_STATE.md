@@ -13,10 +13,10 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 10:15 IST
+- **Last updated:** 2026-10-27 10:35 IST
 - **Branch:** `main`
-- **HEAD commit:** `501b545` (Export polish: version-targeted CSV exports and Before/After audit reports)
-- **Git status:** Clean build, 82 automated pytest tests passing in 2.39s, 0 frontend build errors.
+- **HEAD commit:** `994dd39` (docs: update project state with reliability pass status)
+- **Git status:** Clean build, 87 automated pytest tests passing in 2.46s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
@@ -44,8 +44,8 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningPanel.jsx` | Applying calls same transformation engine; persists new immutable `DatasetVersion` (v2, v3, etc.); records `Transformation` history row with parameters and metrics; auto-triggers re-audit in dashboard | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
 | **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Selected-version CSV export (not implicitly latest); safe generated filenames; formula injection protection with safe numeric string preservation; empty version handling; before/after comparison in HTML/JSON reports for child versions; version report endpoint; visible download failure handling | None | `backend/tests/test_export.py` 11 passed |
-| **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/tests/test_reliability.py` | DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; consistent 404/422 error envelopes; path traversal attacks strictly blocked; partial transformation failures rolled back safely | None | `backend/tests/test_reliability.py` 5 passed |
-| **Automated tests** | VERIFIED | `backend/tests/` | 82 automated tests covering health, persistence, upload, preview, profiling, 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports, reliability, and full E2E lifecycle | None | 82 passed in 2.39s |
+| **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/app/core/errors.py`, `frontend/src/components/DatasetTable.jsx`, `backend/tests/test_reliability.py` | In-app deletion confirmation modal; DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; transaction rollback cleans storage files on DB commit failures; uniform error envelopes for Starlette `HTTPException` (404, 405) and `RequestValidationError` (422); duplicate submission prevention guards across UI; friendly network error interception | None | `backend/tests/test_reliability.py` 10 passed |
+| **Automated tests** | VERIFIED | `backend/tests/` | 87 automated tests covering health, persistence, upload, preview, profiling, 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports, reliability & rollback, and full E2E lifecycle | None | 87 passed in 2.46s |
 | **README & deployment** | VERIFIED | `README.md`, `docs/DECISIONS.md`, `.env.example` | Architecture diagrams, complete local setup instructions, production build instructions, core invariants, and explicit PRD limitations documented | None | Setup and build verified locally |
 | **Demo and final submission checklist** | VERIFIED | `sample_datasets/demo_dirty_dataset.csv`, `sample_datasets/README.md`, `backend/tests/test_e2e_workflow.py` | Reproducible 20-row sample CSV with known defects across all 8 audit rules, walkthrough guide, and automated E2E lifecycle test verifying upload->profile->audit->preview->apply(v2,v3,v4)->compare->export | None | `test_full_datalens_e2e_lifecycle` PASSED |
 
@@ -300,4 +300,20 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
     - `test_audit_report_with_before_after_comparison_child_version`: verifies HTML and JSON reports on child versions contain before/after score deltas, metric improvements, and resolved findings.
     - `test_export_version_report_endpoint`: verifies `GET /versions/{v_id}/report` returns 200 OK with proper headers and contents.
 - **Tests/results:** 82/82 tests passed in 2.39s; production Vite build passed in 762ms (0 errors).
-- **Next action:** Commit export improvements.
+
+### 2026-10-27 — Reliability Pass, In-App Deletion Modal, and Error Uniformity
+- **Goal:** Execute a comprehensive reliability pass without adding new features: accessible deletion modal with cascade confirmation, orphan prevention on DB commit rollback, uniform Starlette/FastAPI error envelopes, double submission prevention, network failure resilience, and comprehensive reliability test cases.
+- **Changes:**
+  - `frontend/src/components/DatasetTable.jsx`: Replaced browser `window.confirm` with an accessible, in-app modal confirmation dialog detailing permanent cascade impact (versions, audits, findings, transformations, and physical disk files) with "Cancel" and "Permanently Delete" buttons and active spinner state.
+  - `backend/app/services/dataset_service.py`: Wrapped `create_dataset` and `create_version` database commits in `try...except` blocks with `db.rollback()` and `self.storage.delete_file(storage_ref)`, ensuring any DB commit failure immediately purges the newly written file from disk.
+  - `backend/app/core/errors.py`: Registered handlers for `StarletteHTTPException` (404, 405, 500) and `RequestValidationError` (422) in addition to `DataLensError`, standardizing all API error responses to `{ "error": "...", "message": "...", "details": { ... } }`.
+  - `frontend/src/api/client.js`: Enhanced `checkHealth`, `apiClient`, and `downloadFileFromUrl` with `try...catch` blocks catching network errors / connection refused (`Failed to fetch`) and surfacing actionable error messages (`Network Error: Unable to connect to DataLens backend at ...`).
+  - `frontend/src/components/UploadSection.jsx`, `CleaningPanel.jsx`, and `AuditDashboard.jsx`: Added submission guards preventing concurrent / duplicated uploads, transformation applications, re-audits, and file exports.
+  - `backend/tests/test_reliability.py`: Added 5 new automated tests:
+    - `test_http_exception_and_method_not_allowed_envelope`: verifies 405 Method Not Allowed returns uniform envelope.
+    - `test_request_validation_error_envelope`: verifies 422 RequestValidationError returns uniform envelope with error details.
+    - `test_rollback_on_failed_dataset_creation_cleans_file`: verifies disk storage file is purged if DB commit fails during dataset creation.
+    - `test_rollback_on_failed_version_creation_cleans_file`: verifies disk storage file is purged if DB commit fails during version creation.
+    - `test_delete_dataset_endpoint_full_lifecycle`: verifies `DELETE /api/v1/datasets/{id}` deletes DB records, cache, and files, and returns 200.
+- **Tests/results:** 87/87 tests passed in 2.46s; production Vite build passed in 774ms (0 errors).
+

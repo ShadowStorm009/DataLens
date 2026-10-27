@@ -2,17 +2,20 @@ import { useState } from 'react';
 import { getExportCsvUrl, downloadFileFromUrl } from '../api/client';
 
 export default function DatasetTable({ datasets, loading, onPreview, onDelete, onRefresh, onViewProfile, onViewAudit, onCompare }) {
+  const [datasetToDelete, setDatasetToDelete] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [exportError, setExportError] = useState(null);
 
-  const handleDelete = async (dataset) => {
-    if (window.confirm(`Are you sure you want to permanently delete dataset "${dataset.name}" and all its versions?`)) {
-      setDeletingId(dataset.id);
-      try {
-        await onDelete(dataset.id);
-      } finally {
-        setDeletingId(null);
-      }
+  const handleConfirmDelete = async (dataset) => {
+    setDeletingId(dataset.id);
+    setExportError(null);
+    try {
+      await onDelete(dataset.id);
+      setDatasetToDelete(null);
+    } catch (err) {
+      setExportError(err.message || 'Failed to delete dataset');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -137,8 +140,9 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
                       <button
                         className="btn btn-outline"
                         style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: 'var(--danger)', borderColor: '#fecaca' }}
-                        onClick={() => handleDelete(ds)}
+                        onClick={() => setDatasetToDelete(ds)}
                         disabled={deletingId === ds.id}
+                        title={`Delete dataset "${ds.name}"`}
                       >
                         {deletingId === ds.id ? 'Deleting...' : 'Delete'}
                       </button>
@@ -148,6 +152,109 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {datasetToDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: '460px',
+              width: '100%',
+              padding: '1.75rem',
+              borderRadius: 'var(--radius-md)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
+              background: '#ffffff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: '#fee2e2',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '1.1rem',
+                  flexShrink: 0,
+                }}
+              >
+                !
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  Confirm Dataset Deletion
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Permanent Cascade Action</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '1rem', lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete dataset <strong>"{datasetToDelete.name}"</strong>?
+            </p>
+
+            <div
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.75rem',
+                fontSize: '0.8rem',
+                color: '#991b1b',
+                marginBottom: '1.5rem',
+                lineHeight: 1.4,
+              }}
+            >
+              <strong>Cascade Warning:</strong> This will delete all immutable versions (v1..vN), audit runs, rule findings, transformation records, and physical CSV/cache storage files on disk. This cannot be undone.
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                style={{ fontSize: '0.85rem' }}
+                onClick={() => setDatasetToDelete(null)}
+                disabled={deletingId === datasetToDelete.id}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  fontSize: '0.85rem',
+                  backgroundColor: 'var(--danger)',
+                  color: '#ffffff',
+                  borderColor: 'var(--danger)',
+                }}
+                onClick={() => handleConfirmDelete(datasetToDelete)}
+                disabled={deletingId === datasetToDelete.id}
+              >
+                {deletingId === datasetToDelete.id ? 'Deleting Records & Files...' : 'Permanently Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

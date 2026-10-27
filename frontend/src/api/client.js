@@ -9,11 +9,15 @@ const HEALTH_URL = (import.meta.env.VITE_API_BASE_URL
  * Perform a GET request to the backend health endpoint.
  */
 export async function checkHealth() {
-  const response = await fetch(HEALTH_URL);
-  if (!response.ok) {
-    throw new Error(`Health check failed with status: ${response.status}`);
+  try {
+    const response = await fetch(HEALTH_URL);
+    if (!response.ok) {
+      throw new Error(`Health check failed with status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (err) {
+    throw new Error(`Backend unavailable: ${err.message}`);
   }
-  return response.json();
 }
 
 /**
@@ -32,10 +36,20 @@ export async function apiClient(endpoint, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (netErr) {
+    const error = new Error(
+      `Network Error: Unable to connect to DataLens backend at ${url}. Please verify the FastAPI server is running.`
+    );
+    error.isNetworkError = true;
+    error.status = 0;
+    throw error;
+  }
 
   const contentType = response.headers.get('content-type');
   const isJson = contentType && contentType.includes('application/json');
@@ -279,7 +293,13 @@ export function getExportReportUrl(datasetId, auditId = null, format = 'html', v
  * Trigger browser file download from a given URL with error catching
  */
 export async function downloadFileFromUrl(url, defaultFilename = 'datalens_download') {
-  const response = await fetch(url);
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (netErr) {
+    throw new Error(`Network Error: Unable to reach DataLens backend for download. Please verify the server is running.`);
+  }
+
   if (!response.ok) {
     let errMsg = `Download failed with HTTP ${response.status}`;
     try {

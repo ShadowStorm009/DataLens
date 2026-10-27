@@ -28,7 +28,7 @@ Export Cleaned CSV ◄── Compare Versions ◄── Re-audit ◄── Apply
 - **Backend**: Python 3.10+ (tested on Python 3.14 / Arch Linux), FastAPI, Uvicorn, Pydantic v2.
 - **Data Engine**: Pandas and NumPy.
 - **Persistence**: SQLite with SQLAlchemy ORM (`PRAGMA foreign_keys = ON;`) for metadata, version tracking, audit records, and transformation logs.
-- **Testing**: pytest and FastAPI TestClient (74 automated tests passing).
+- **Testing**: pytest and FastAPI TestClient (87 automated tests passing).
 
 ---
 
@@ -114,7 +114,7 @@ Production assets will be output to `frontend/dist/`.
 ### 4. Running the Test Suite
 
 ```bash
-# Run all 74 unit, integration, and E2E tests:
+# Run all 87 unit, integration, and E2E tests:
 .venv/bin/pytest backend/tests -v
 ```
 
@@ -150,7 +150,9 @@ See [`sample_datasets/README.md`](sample_datasets/README.md) for a detailed brea
 2. **Upload Immutability**: Original uploaded files are preserved immutably. Transformations write new child versions (`v2`, `v3`).
 3. **Preview/Apply Parity**: Non-mutating preview and permanent apply invoke the identical underlying `TransformationEngine` code to eliminate simulation discrepancy.
 4. **Formula Injection Sanitization**: Exporting with `spreadsheet_safe=True` prefixes leading `=`, `+`, `-`, `@`, `\t`, and `\r` with `'` to neutralize CSV/DDE injection vulnerabilities in spreadsheet applications.
-5. **Cascade Integrity**: Deleting a dataset safely removes its SQLite database records, version files, and disk-cached profile files.
+5. **Cascade Integrity & Zero Orphan Storage**: Deleting a dataset safely removes its SQLite database records, version files, and disk-cached profile files. If any database commit fails during dataset or version creation, the newly created disk file is immediately purged during rollback.
+6. **Uniform Error Envelope**: All API errors (business exceptions, HTTP errors, validation errors) return a standardized `{ "error": "...", "message": "...", "details": { ... } }` payload.
+7. **Deletion Confirmation**: Deletion is guarded by an accessible in-app modal with clear warning about permanent cascade effects before execution.
 
 ---
 

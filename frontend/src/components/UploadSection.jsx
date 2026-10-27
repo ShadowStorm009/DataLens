@@ -60,6 +60,7 @@ export default function UploadSection({ onUploadSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (uploading) return;
     if (!selectedFile) {
       setError('Please select a valid CSV file to upload.');
       return;

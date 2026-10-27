@@ -58,11 +58,16 @@ class DatasetService:
             storage_reference=storage_ref,
         )
 
-        db.add(dataset)
-        db.add(initial_version)
-        db.commit()
-        db.refresh(dataset)
-        return dataset
+        try:
+            db.add(dataset)
+            db.add(initial_version)
+            db.commit()
+            db.refresh(dataset)
+            return dataset
+        except Exception:
+            db.rollback()
+            self.storage.delete_file(storage_ref)
+            raise
 
     def get_dataset(self, db: Session, dataset_id: str) -> Dataset:
         """Retrieve dataset by ID or raise ResourceNotFoundError."""
@@ -112,10 +117,15 @@ class DatasetService:
         dataset.row_count = row_count
         dataset.column_count = column_count
 
-        db.add(new_version)
-        db.commit()
-        db.refresh(new_version)
-        return new_version
+        try:
+            db.add(new_version)
+            db.commit()
+            db.refresh(new_version)
+            return new_version
+        except Exception:
+            db.rollback()
+            self.storage.delete_file(storage_ref)
+            raise
 
     def get_version(self, db: Session, version_id: str) -> DatasetVersion:
         """Retrieve a dataset version by ID or raise ResourceNotFoundError."""

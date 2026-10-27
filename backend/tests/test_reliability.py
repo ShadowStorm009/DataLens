@@ -108,5 +108,113 @@ def test_error_envelope_consistency():
     )
     assert res.status_code == 422
     err_json = res.json()
-    assert "error" in err_json
+    assert err_json["error"] == "FileValidationError"
     assert "message" in err_json
+    assert "details" in err_json
+
+def test_http_exception_and_method_not_allowed_envelope():
+    """Verify standard Starlette HTTPExceptions (e.g., 405 Method Not Allowed) return the uniform envelope."""
+    # DELETE on /health is not allowed
+    res = client.delete("/health")
+    assert res.status_code == 405
+    err_json = res.json()
+    assert err_json["error"] == "HTTPException"
+    assert "Method Not Allowed" in err_json["message"]
+    assert isinstance(err_json["details"], dict)
+
+def test_request_validation_error_envelope():
+    """Verify FastAPI RequestValidationError (422) returns uniform envelope with error details."""
+    # POST to transformations preview with empty/malformed json payload
+    res = client.post(
+        "/api/v1/datasets/00000000-0000-0000-0000-000000000000/transformations/preview",
+        json={"unknown_field": 123},
+    )
+    assert res.status_code == 422
+    err_json = res.json()
+    assert err_json["error"] == "RequestValidationError"
+    assert "Invalid request" in err_json["message"]
+    assert "errors" in err_json["details"]
+
+def test_rollback_on_failed_dataset_creation_cleans_file(db_session, isolated_storage, monkeypatch):
+    """Verify that if database commit fails during create_dataset, the storage file is purged."""
+    csv_bytes = b"col1,col2\n1,2\n3,4\n"
+    before_csvs = set(isolated_storage.base_dir.glob("*.csv"))
+
+    # Monkeypatch db_session.commit to simulate DB failure
+    def mock_commit():
+        raise RuntimeError("Simulated Database Commit Failure")
+
+    monkeypatch.setattr(db_session, "commit", mock_commit)
+
+    with pytest.raises(RuntimeError, match="Simulated Database Commit Failure"):
+        dataset_service.create_dataset(
+            db=db_session,
+            name="Rollback Test",
+            original_filename="rollback.csv",
+            content=csv_bytes,
+            row_count=2,
+            column_count=2,
+        )
+
+    # Verify no new CSV files were left in isolated_storage directory
+    after_csvs = set(isolated_storage.base_dir.glob("*.csv"))
+    assert after_csvs == before_csvs
+
+def test_rollback_on_failed_version_creation_cleans_file(db_session, isolated_storage, monkeypatch):
+    """Verify that if database commit fails during create_version, the storage file is purged."""
+    csv_bytes = b"col1,col2\n1,2\n3,4\n"
+    before_csvs = set(isolated_storage.base_dir.glob("*.csv"))
+
+    dataset = dataset_service.create_dataset(
+        db=db_session,
+        name="Version Rollback Test",
+        original_filename="v_rollback.csv",
+        content=csv_bytes,
+        row_count=2,
+        column_count=2,
+    )
+    initial_version_id = dataset.current_version_id
+    created_csvs = set(isolated_storage.base_dir.glob("*.csv"))
+    assert len(created_csvs - before_csvs) == 1
+
+    # Monkeypatch db_session.commit to simulate DB failure during create_version
+    def mock_commit():
+        raise RuntimeError("Simulated Version Commit Failure")
+
+    monkeypatch.setattr(db_session, "commit", mock_commit)
+
+    df_new = pd.DataFrame({"col1": [1, 3], "col2": [2, 4]})
+    with pytest.raises(RuntimeError, match="Simulated Version Commit Failure"):
+        dataset_service.create_version(
+            db=db_session,
+            dataset_id=dataset.id,
+            parent_version_id=initial_version_id,
+            data=df_new,
+            row_count=2,
+            column_count=2,
+        )
+
+    # Verify no extra orphaned CSV file remained on disk
+    after_csvs = set(isolated_storage.base_dir.glob("*.csv"))
+    assert after_csvs == created_csvs
+
+def test_delete_dataset_endpoint_full_lifecycle():
+    """Verify DELETE /api/v1/datasets/{id} deletes DB records, cache, and files, and returns 200."""
+    csv_bytes = b"x,y\n1,2\n3,4\n"
+    upload_res = client.post(
+        "/api/v1/datasets",
+        files={"file": ("to_delete.csv", io.BytesIO(csv_bytes), "text/csv")},
+    )
+    assert upload_res.status_code == 201
+    dataset_id = upload_res.json()["id"]
+
+    # Delete dataset
+    del_res = client.delete(f"/api/v1/datasets/{dataset_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "deleted"
+    assert del_res.json()["dataset_id"] == dataset_id
+
+    # Confirm subsequent GET returns 404
+    get_res = client.get(f"/api/v1/datasets/{dataset_id}")
+    assert get_res.status_code == 404
+
