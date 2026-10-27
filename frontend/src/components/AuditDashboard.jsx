@@ -54,13 +54,13 @@ export default function AuditDashboard({
   const [searchQuery, setSearchQuery] = useState('');
   const [targetColumn, setTargetColumn] = useState('');
 
-  const handleDownload = async (url) => {
+  const handleDownload = async (url, defaultFilename = null) => {
     if (exporting) return;
     setExporting(true);
     setExportError(null);
     setShowExportMenu(false);
     try {
-      await downloadFileFromUrl(url);
+      await downloadFileFromUrl(url, defaultFilename);
     } catch (err) {
       setExportError(err.message || 'Export failed. Please check the requested file and try again.');
     } finally {
@@ -440,7 +440,10 @@ export default function AuditDashboard({
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', marginBottom: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => handleDownload(getExportCsvUrl(dataset.id, activeVerId, false))}
+                  onClick={() => {
+                    const safeName = dataset?.name ? dataset.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'datalens';
+                    handleDownload(getExportCsvUrl(dataset.id, activeVerId, false), `${safeName}_v${currentVerNum}.csv`);
+                  }}
                   disabled={exporting}
                 >
                   📄 Standard CSV (v{currentVerNum})
@@ -448,7 +451,10 @@ export default function AuditDashboard({
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', marginBottom: '0.75rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => handleDownload(getExportCsvUrl(dataset.id, activeVerId, true))}
+                  onClick={() => {
+                    const safeName = dataset?.name ? dataset.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'datalens';
+                    handleDownload(getExportCsvUrl(dataset.id, activeVerId, true), `${safeName}_v${currentVerNum}_spreadsheet_safe.csv`);
+                  }}
                   disabled={exporting}
                 >
                   🛡️ Spreadsheet-Safe CSV (v{currentVerNum})
@@ -460,7 +466,10 @@ export default function AuditDashboard({
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', marginBottom: '0.4rem', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
-                  onClick={() => handleDownload(getExportReportUrl(dataset.id, audit?.id, 'html', activeVerId))}
+                  onClick={() => {
+                    const safeName = dataset?.name ? dataset.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'datalens';
+                    handleDownload(getExportReportUrl(dataset.id, audit?.id, 'html', activeVerId), `${safeName}_v${currentVerNum}_audit_report.html`);
+                  }}
                   disabled={!audit || exporting}
                 >
                   📊 Standalone HTML Report
@@ -468,7 +477,10 @@ export default function AuditDashboard({
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem', marginBottom: '0.4rem' }}
-                  onClick={() => handleDownload(getExportReportUrl(dataset.id, audit?.id, 'json', activeVerId))}
+                  onClick={() => {
+                    const safeName = dataset?.name ? dataset.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'datalens';
+                    handleDownload(getExportReportUrl(dataset.id, audit?.id, 'json', activeVerId), `${safeName}_v${currentVerNum}_audit_report.json`);
+                  }}
                   disabled={!audit || exporting}
                 >
                   ⚙️ Machine JSON Report
@@ -480,7 +492,10 @@ export default function AuditDashboard({
                 <button
                   className="btn btn-outline"
                   style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem', color: '#b45309', borderColor: '#fde68a', background: '#fffdf5' }}
-                  onClick={() => handleDownload(getColabNotebookUrl(dataset.id, activeVerId))}
+                  onClick={() => {
+                    const safeName = dataset?.name ? dataset.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'datalens';
+                    handleDownload(getColabNotebookUrl(dataset.id, activeVerId), `${safeName}_v${currentVerNum}_colab_starter.ipynb`);
+                  }}
                   disabled={exporting}
                 >
                   📓 Starter Notebook (.ipynb)

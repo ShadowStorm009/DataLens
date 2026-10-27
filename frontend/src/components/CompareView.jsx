@@ -199,7 +199,7 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
             onClick={async () => {
               setExporting(true);
               try {
-                await downloadFileFromUrl(getExportCsvUrl(datasetId, v2Id, false));
+                await downloadFileFromUrl(getExportCsvUrl(datasetId, v2Id, false), 'dataset_comparison.csv');
               } catch (err) {
                 setError(err.message || 'Failed to download comparison CSV');
               } finally {

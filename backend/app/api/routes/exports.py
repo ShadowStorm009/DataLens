@@ -90,6 +90,7 @@ def export_version_colab_notebook(
         media_type="application/x-ipynb+json; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "application/x-ipynb+json; charset=utf-8",
         },
     )
 

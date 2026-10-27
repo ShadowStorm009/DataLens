@@ -128,7 +128,10 @@ export default function DatasetTable({ datasets, loading, onPreview, onDelete, o
                         onClick={async () => {
                           setExportError(null);
                           try {
-                            await downloadFileFromUrl(getExportCsvUrl(ds.id, ds.current_version_id, false));
+                            await downloadFileFromUrl(
+                              getExportCsvUrl(ds.id, ds.current_version_id, false),
+                              `${(ds.name || 'dataset').replace(/\.[^/.]+$/, '')}.csv`
+                            );
                           } catch (err) {
                             setExportError(err.message || 'Failed to download dataset CSV');
                           }

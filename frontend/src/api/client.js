@@ -325,7 +325,7 @@ export function getColabNotebookUrl(datasetId, versionId = null) {
 /**
  * Trigger browser file download from a given URL with error catching
  */
-export async function downloadFileFromUrl(url, defaultFilename = 'datalens_download') {
+export async function downloadFileFromUrl(url, defaultFilename = 'datalens_notebook.ipynb') {
   let response;
   try {
     response = await fetch(url);
@@ -345,17 +345,59 @@ export async function downloadFileFromUrl(url, defaultFilename = 'datalens_downl
   }
 
   // Attempt to parse filename from Content-Disposition header
-  let filename = defaultFilename;
-  const disposition = response.headers.get('Content-Disposition');
-  if (disposition && disposition.includes('filename=')) {
-    const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-    if (match && match[1]) {
-      filename = match[1].replace(/['"]/g, '').trim();
+  let filename = defaultFilename || 'datalens_notebook.ipynb';
+  const disposition = response.headers.get('Content-Disposition') || response.headers.get('content-disposition');
+  if (disposition) {
+    // RFC 5987 / UTF-8 encoding support: filename*=UTF-8''...
+    const utf8Match = disposition.match(/filename\*=UTF-8''([^;\n]*)/i);
+    if (utf8Match && utf8Match[1]) {
+      try {
+        filename = decodeURIComponent(utf8Match[1]).trim();
+      } catch (_) {
+        filename = utf8Match[1].trim();
+      }
+    } else {
+      const match = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+      if (match && match[1]) {
+        filename = match[1].replace(/['"]/g, '').trim();
+      }
     }
   }
 
-  const blob = await response.blob();
-  const objectUrl = window.URL.createObjectURL(blob);
+  // Fallback to URL path extraction if still no filename or generic default
+  if (!filename || filename === 'datalens_download') {
+    try {
+      const parsedUrl = new URL(url, window.location.origin);
+      const pathname = parsedUrl.pathname;
+      const lastSegment = pathname.substring(pathname.lastIndexOf('/') + 1);
+      if (lastSegment && lastSegment.includes('.')) {
+        filename = lastSegment;
+      }
+    } catch (_) {}
+  }
+
+  // If there is no extension in filename, default to .ipynb as requested
+  if (!filename.includes('.')) {
+    filename = `${filename}.ipynb`;
+  }
+
+  // Explicitly ensure the Blob is typed with the correct MIME type
+  let contentType = response.headers.get('Content-Type') || response.headers.get('content-type');
+  if (!contentType || contentType.includes('text/plain') || contentType.includes('application/octet-stream')) {
+    if (filename.endsWith('.ipynb')) {
+      contentType = 'application/x-ipynb+json';
+    } else if (filename.endsWith('.csv')) {
+      contentType = 'text/csv; charset=utf-8';
+    } else if (filename.endsWith('.html')) {
+      contentType = 'text/html; charset=utf-8';
+    } else if (filename.endsWith('.json')) {
+      contentType = 'application/json';
+    }
+  }
+
+  const rawBlob = await response.blob();
+  const typedBlob = new Blob([rawBlob], { type: contentType });
+  const objectUrl = window.URL.createObjectURL(typedBlob);
   const link = document.createElement('a');
   link.href = objectUrl;
   link.download = filename;

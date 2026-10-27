@@ -34,6 +34,7 @@ app.add_middleware(
     allow_credentials=allow_creds,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition", "Content-Length", "X-Spreadsheet-Safe"],
 )
 
 # Register custom error handlers

@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/Frontend-React%2018%20+%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![Pandas](https://img.shields.io/badge/Engine-Pandas%202.2%20+%20NumPy-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org)
 [![SQLite](https://img.shields.io/badge/Storage-SQLite%203%20+%20SQLAlchemy-003B57?logo=sqlite&logoColor=white)](https://sqlite.org)
-[![Tests](https://img.shields.io/badge/Tests-98%20Passed-success?logo=pytest&logoColor=white)](https://docs.pytest.org)
+[![Tests](https://img.shields.io/badge/Tests-99%20Passed-success?logo=pytest&logoColor=white)](https://docs.pytest.org)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
@@ -110,8 +110,8 @@ Rather than relying on non-deterministic external LLMs or black-box auto-clean s
 - 📦 **Multi-Format Export Center**:
   - Export cleaned CSVs with optional **Spreadsheet Formula Injection Defense** (neutralizes `=`, `+`, `-`, `@` macros).
   - Standalone self-contained HTML audit reports (interactive, printable, zero external CSS dependencies) and machine-readable JSON reports.
-- 🚀 **Google Colab Integration**:
-  - Download a ready-to-run Jupyter notebook (`.ipynb`, nbformat v4.5) customized to your active dataset version with Colab file uploader, Pandas loader, sanity stats, and structured EDA / feature engineering / train-test-split / model training templates.
+- 🚀 **Self-Contained Google Colab Integration**:
+  - Download a ready-to-run Jupyter notebook (`.ipynb`, nbformat v4.5) customized to your active dataset version with the exact dataset embedded as a base64 payload. Run all cells in Colab with zero setup—no separate CSV upload or server connection needed!
   - Single-click launcher opening official Google Colab in a new browser tab.
 - 🗑️ **Safe Cascade Deletion**:
   - Accessible confirmation modal guaranteeing complete cleanup of SQLite records, child versions, disk CSVs, and profile caches without orphaned files.

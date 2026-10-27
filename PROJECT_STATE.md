@@ -13,19 +13,19 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 20:10 IST
+- **Last updated:** 2026-10-27 21:15 IST
 - **Branch:** `main`
-- **HEAD commit:** `8183807`
-- **Git status:** Clean build, 98 automated pytest tests passing in 3.04s, 0 frontend build errors.
+- **HEAD commit:** `a7cd75e`
+- **Git status:** Clean build, 99 automated pytest tests passing in 3.10s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, export endpoints, and production SPA serving)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced and auto-creating parent directories.
 - **Upload/storage directory:** `./storage` (git-ignored, versioned dataset storage, managed via `StorageService`)
 - **Frontend run command:** `cd frontend && npm run dev`
 - **Backend run command:** `.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload`
-- **Test commands:** `.venv/bin/pytest -v` (backend, 98/98 passed) and `cd frontend && npm run build` (frontend, 0 errors)
+- **Test commands:** `.venv/bin/pytest -v` (backend, 99/99 passed) and `cd frontend && npm run build` (frontend, 0 errors)
 - **Environment variable names:** `DATALENS_ENV`, `DATALENS_HOST`, `DATALENS_PORT`, `DATABASE_URL`, `STORAGE_DIR`, `MAX_UPLOAD_SIZE_BYTES`, `CORS_ORIGINS`, `VITE_API_BASE_URL`
-- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint (GET + HEAD 200 OK), production Vite frontend build, same-origin SPA static serving, Dockerfile, docker-compose.yml, and all 98 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
+- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint (GET + HEAD 200 OK), production Vite frontend build, same-origin SPA static serving, Dockerfile, docker-compose.yml, and all 99 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
 - **Important architecture notes:** Arch Linux host requires Python installations in `.venv/`. Core audit and cleaning logic remains deterministic without external LLM dependencies.
 
 ## 3. Feature Status Matrix
@@ -45,7 +45,7 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx` | Sequential execution engine applying validated transformations on in-memory copies, creating immutable versions (v2, v3, etc.), recording audit trail, and auto-triggering re-audit on completion with comparison links | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
 | **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/App.jsx`, `backend/tests/test_export.py` | Dedicated Export Center with two distinct sections: Section A (Dataset CSV Export with version selector distinguishing original v1 from cleaned/transformed versions with lineage and transformation summary, spreadsheet-safe CSV mode, filename preview, and download feedback) and Section B (Audit Report Export with completed audit run selector, HTML and JSON format selections, format descriptions, explicit unsupported format notification, 400 validation for unsupported formats, and loading feedback); direct navbar access and contextual links from Audit Dashboard | None | `backend/tests/test_export.py` 12 passed (including `test_export_unsupported_format_returns_400`), 96 pytest tests passing, Vite frontend build clean in 859ms |
-| **Google Colab handoff & starter notebook** | VERIFIED | `backend/app/services/colab_notebook.py`, `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `backend/tests/test_colab_export.py` | Dedicated Section C in Export Center: (1) Download matching cleaned CSV; (2) Download prepared schema-compliant Jupyter notebook (`.ipynb`, nbformat v4.5) with Colab file upload cell, Pandas loader, sanity stats, and structured placeholder cells for visual EDA, feature engineering, train/test splitting, and ML modeling; (3) Open official Google Colab research portal in new tab (`https://colab.research.google.com/`); strict version parity with matching expected filename (`{dataset}_v{num}.csv`); zero embedded raw data or server paths; comprehensive instructions & privacy guarantees | None | `backend/tests/test_colab_export.py` 5 passed (schema compliance, version parity, version endpoint, current version endpoint, 404 handling); Vite build clean in 924ms |
+| **Google Colab handoff & starter notebook** | VERIFIED | `backend/app/services/colab_notebook.py`, `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `backend/tests/test_colab_export.py` | Dedicated Section C in Export Center: (1) Self-contained Jupyter starter notebook (`.ipynb`, nbformat v4.5) with embedded base64 dataset payload, Pandas in-memory BytesIO loader, sanity stats, and structured placeholder cells for visual EDA, feature engineering, train/test splitting, and ML modeling; (2) Open official Google Colab research portal in new tab (`https://colab.research.google.com/`); (3) Optional standalone matching CSV export; strict version parity; zero external network dependencies in notebook; explicit size limit check; CORS Content-Disposition exposure and .ipynb fallback | None | `backend/tests/test_colab_export.py` 6 passed; Vite build clean in 921ms |
 | **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/app/core/errors.py`, `frontend/src/components/DatasetTable.jsx`, `backend/tests/test_reliability.py` | In-app deletion confirmation modal; DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; transaction rollback cleans storage files on DB commit failures; uniform error envelopes for Starlette `HTTPException` (404, 405) and `RequestValidationError` (422); duplicate submission prevention guards across UI; friendly network error interception | None | `backend/tests/test_reliability.py` 10 passed |
 | **Automated tests** | VERIFIED | `backend/tests/` | 96 automated tests covering health, persistence, upload, preview, profiling (including histogram and timeline generation), 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports (including unsupported format rejection), Colab notebook generation & endpoints, reliability & rollback, audit summary agreement regression, and full E2E & QA lifecycles | None | 96 passed in 2.97s |
 | **README & deployment** | VERIFIED | `README.md`, `Dockerfile`, `docker-compose.yml`, `docs/DECISIONS.md`, `.env.example` | Architecture diagram & module boundaries, local setup instructions, production build instructions, Docker & Docker Compose setup with persistent volume storage requirements, Linux VPS systemd/nginx configuration, core invariants, and explicit limitations documented. Deployment status truthfully marked unverified for remote cloud hosting | None | Setup, build, local daemon running, and health verification verified locally |
@@ -589,6 +589,41 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
     - HTML audit report export (`GET /api/v1/datasets/{id}/report?format=html`)
     - Colab notebook export (`GET /api/v1/datasets/{id}/colab-notebook`)
     - Cascade deletion cleanup (`DELETE /api/v1/datasets/{id}`)
+
+### Phase 12 — Self-Contained Google Colab Notebook & .ipynb File Type Fix (Prompt 8)
+- **Goal:** Transform the Google Colab starter notebook export into a 100% self-contained `.ipynb` file with the selected dataset version embedded directly inside it, and fix the `.txt` extension / MIME type problem during browser download.
+- **Root Cause of the .txt File Issue Identified:**
+  1. `AuditDashboard.jsx` invoked `downloadFileFromUrl(url)` with no `defaultFilename` argument, defaulting to `'datalens_download'` (no extension).
+  2. Starlette's `CORSMiddleware` in `backend/app/main.py` did not include `Content-Disposition` in `expose_headers`, causing `response.headers.get('Content-Disposition')` to return `null` in cross-origin frontend requests.
+  3. Operating systems and browsers automatically appended `.txt` to extensionless downloads or treated them as generic text files.
+- **Fixes Applied:**
+  1. **CORS Expose Headers (`backend/app/main.py`):** Added `expose_headers=["Content-Disposition", "Content-Length", "X-Spreadsheet-Safe"]` to `CORSMiddleware`.
+  2. **Client Downloader Extension & MIME Fallback (`frontend/src/api/client.js`):**
+     - Updated `downloadFileFromUrl` to decode standard and RFC 5987 (`filename*=UTF-8''...`) `Content-Disposition` headers.
+     - Enforced: if a downloaded filename has no extension, default to `.ipynb` (or `.csv` for direct CSV exports).
+     - Explicitly instantiated `new Blob([rawBlob], { type: contentType })` where `contentType = 'application/x-ipynb+json'`.
+  3. **Explicit Filenames in UI (`AuditDashboard.jsx` & `ExportCenter.jsx`):**
+     - Updated `AuditDashboard.jsx` export buttons to pass explicit formatted filenames (`${safeName}_v${verNum}_colab_starter.ipynb`, `.csv`, `.html`, `.json`).
+     - Updated `ExportCenter.jsx` Section C copy and instructions to reflect the self-contained workflow.
+  4. **Self-Contained Embedded Dataset Generator (`backend/app/services/colab_notebook.py`):**
+     - Reads exact DataFrame for selected version, serializes to CSV bytes, and encodes as base64 string (`EMBEDDED_CSV_B64`).
+     - Generates Step 1 code cell that decodes base64 into `io.BytesIO` and restores into Pandas `df` with zero network requests or prompts.
+     - Completely eliminated `google.colab.files.upload()` prompt.
+     - Preserved all downstream EDA, Feature Engineering, Train/Test Split, and Model Training template cells.
+     - Added safe notebook embedding size guard (`MAX_NOTEBOOK_EMBED_BYTES = 10 MB`) raising clean `ValidationError` (400) if exceeded.
+     - Embedded metadata (`datalens` dictionary) with `self_contained: True`, version number, rows, cols, and timestamp.
+     - Added sensitive data security notice in introductory markdown.
+- **Automated Verification:**
+  - Updated `backend/tests/test_colab_export.py` with 6 exhaustive tests:
+    - `test_colab_notebook_schema_and_structure` (verifies schema, no `files.upload()`, decodes payload, verifies rows/cols and values like "Astronaut").
+    - `test_colab_notebook_version_parity` (verifies v1 baseline and v2 cleaned embed distinct payloads).
+    - `test_colab_notebook_endpoint_by_version` (verifies MIME type, `.ipynb` Content-Disposition, and decodable payload).
+    - `test_colab_notebook_endpoint_current_version` (verifies shortcut route).
+    - `test_colab_notebook_endpoint_not_found` (verifies 404s).
+    - `test_colab_notebook_oversized_dataset_rejected` (verifies explicit 400 rejection for oversized datasets).
+  - **All 99 backend tests passing** in 3.10s.
+  - Production Vite frontend build passing cleanly in 921ms.
+
 
 
 

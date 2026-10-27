@@ -1352,10 +1352,10 @@ export default function ExportCenter({
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                 <span style={{ fontSize: '1.25rem' }}>📓</span>
-                <strong style={{ fontSize: '0.95rem', color: '#92400e' }}>2. Download Starter Notebook</strong>
+                <strong style={{ fontSize: '0.95rem', color: '#92400e' }}>2. Download Self-Contained Notebook</strong>
               </div>
               <p style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: '1.4', marginBottom: '0.75rem' }}>
-                Pre-configured notebook with Google Colab file upload, Pandas data sanity checks, and ML modeling templates.
+                Pre-configured Jupyter notebook with your selected dataset version embedded directly inside. Run all cells in Colab with zero setup—no separate CSV upload needed!
               </p>
               <div style={{ fontSize: '0.75rem', color: '#92400e', marginBottom: '1rem', fontFamily: 'var(--font-mono)' }}>
                 File: {getColabNotebookFilenamePreview()}
@@ -1429,23 +1429,23 @@ export default function ExportCenter({
           }}
         >
           <h4 style={{ margin: '0 0 0.85rem 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            📖 How to Run Your Workflow in Google Colab:
+            📖 How to Run Your Self-Contained Workflow in Google Colab:
           </h4>
           <ol style={{ paddingLeft: '1.25rem', margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: '1.6' }}>
             <li style={{ marginBottom: '0.4rem' }}>
-              <strong>Download files:</strong> Click <strong>Action 1</strong> and <strong>Action 2</strong> above to download <code>{getCsvFilenamePreview()}</code> and <code>{getColabNotebookFilenamePreview()}</code> to your local computer.
+              <strong>Download Self-Contained Notebook:</strong> Click <strong>Action 2 (Download Notebook)</strong> above to save <code>{getColabNotebookFilenamePreview()}</code>. The exact selected dataset version is embedded directly inside as a base64 payload.
             </li>
             <li style={{ marginBottom: '0.4rem' }}>
               <strong>Launch Google Colab:</strong> Click <strong>Action 3 (Open Google Colab ↗)</strong> to open <a href="https://colab.research.google.com/" target="_blank" rel="noopener noreferrer">https://colab.research.google.com/</a> in a new tab.
             </li>
             <li style={{ marginBottom: '0.4rem' }}>
-              <strong>Upload notebook:</strong> In Colab's dialog, select the <strong>Upload</strong> tab (or go to <code>File &rarr; Upload notebook</code>) and upload your downloaded <code>{getColabNotebookFilenamePreview()}</code> file.
+              <strong>Upload &amp; Open:</strong> In Colab's modal dialog, select the <strong>Upload</strong> tab (or navigate to <code>File &rarr; Upload notebook</code>) and select your downloaded <code>{getColabNotebookFilenamePreview()}</code> file.
             </li>
             <li style={{ marginBottom: '0.4rem' }}>
-              <strong>Run &amp; Upload CSV:</strong> Run the first code cell in the notebook. When prompted by <code>google.colab.files.upload()</code>, select your downloaded <code>{getCsvFilenamePreview()}</code> file.
+              <strong>Run &amp; Auto-Restore:</strong> Run the first code cell in the notebook. It automatically decodes the embedded dataset and creates an in-memory Pandas DataFrame (<code>df</code>) — <strong>no separate CSV upload or server connection needed!</strong>
             </li>
             <li>
-              <strong>Model &amp; Experiment:</strong> Proceed through the pre-formatted sections for descriptive statistics, visual EDA, feature engineering, train/test splitting, and model training.
+              <strong>(Optional) Standalone CSV:</strong> Click <strong>Action 1</strong> if you also wish to download a separate copy of <code>{getCsvFilenamePreview()}</code> for spreadsheets or other external tools.
             </li>
           </ol>
         </div>
@@ -1462,7 +1462,7 @@ export default function ExportCenter({
             lineHeight: '1.45',
           }}
         >
-          <strong>🔒 Security &amp; Data Privacy Guarantee:</strong> DataLens runs locally and does not automatically transmit your dataset or notebook files over the network to Google servers. Opening Google Colab does not automatically upload any files; you retain full control by manually uploading your downloaded notebook and CSV directly inside your own Google Colab session.
+          <strong>🔒 Security &amp; Data Privacy Notice:</strong> DataLens runs entirely locally and does not transmit your dataset contents over the network to external Google servers during notebook export. Because the exported <code>.ipynb</code> notebook contains your selected dataset version embedded directly inside it, please treat the downloaded notebook file with the same privacy and confidentiality as your raw data.
         </div>
       </section>
 
