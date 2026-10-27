@@ -15,7 +15,7 @@
 
 - **Last updated:** 2026-10-27 15:10 IST
 - **Branch:** `main`
-- **HEAD commit:** `5b83432` (feat(cleaning): implement guided 6-step cleaning wizard with multi-step persistence and sequential execution)
+- **HEAD commit:** `03ed994` (feat(profiling): improve detailed column profiling and visual EDA with master-detail navigation and audit findings)
 - **Git status:** Clean build, 88 automated pytest tests passing in 2.65s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
