@@ -142,78 +142,48 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    subgraph Client["Frontend Layer (React 18 + Vite)"]
-        SPA["Single Page Application"]
-        UploadComp["Upload & Validation"]
-        DashComp["Audit Dashboard & Findings Drawer"]
-        ProfileComp["Deep Profiler (Histograms & Distributions)"]
-        CleanComp["Cleaning Wizard (Non-Mutating Preview)"]
-        CompareComp["Version Comparison Matrix"]
-        ExportComp["Export Center & Colab Handoff"]
-        APIClient["Centralized API Client (Dynamic Origin & Fetch)"]
+    subgraph UI ["1. Presentation Layer (React 18 + Vite)"]
+        UI_Dash["Audit & Profiling<br/>• Quality Score Dashboard<br/>• Findings Drawer & Evidence<br/>• Column Profiling & Histograms"]
+        UI_Clean["Cleaning & Comparison<br/>• Non-Mutating Diff Preview<br/>• Interactive Operation Forms<br/>• Side-by-Side Version Matrix"]
+        UI_Export["Ingestion & Export<br/>• CSV Upload & Drag-and-Drop<br/>• Export Center & Formats<br/>• Google Colab Handoff"]
+        API_Client["Centralized API Client<br/>• Dynamic Base URL Detection<br/>• Unified Error Envelope Normalization<br/>• Typed Blob Stream Downloader (.ipynb / .csv)"]
         
-        SPA --> UploadComp
-        SPA --> DashComp
-        SPA --> ProfileComp
-        SPA --> CleanComp
-        SPA --> CompareComp
-        SPA --> ExportComp
-        UploadComp & DashComp & ProfileComp & CleanComp & CompareComp & ExportComp --> APIClient
+        UI_Dash & UI_Clean & UI_Export --> API_Client
     end
 
-    subgraph Server["API Routing Layer (FastAPI + Uvicorn)"]
-        FastAPIApp["FastAPI Core (Lifespan & CORS)"]
-        HealthRoute["/health (GET & HEAD)"]
-        DatasetRoute["/api/v1/datasets (Upload, Profile, Delete)"]
-        AuditRoute["/api/v1/audits (Rule Execution & Findings)"]
-        TransformRoute["/api/v1/transformations (Preview & Apply)"]
-        CompareRoute["/api/v1/compare & /history"]
-        ExportRoute["/api/v1/export & /colab-notebook"]
-        SPARoute["Static Files (/assets & SPA catch-all)"]
+    subgraph API ["2. API Routing Layer (FastAPI + Uvicorn)"]
+        API_Gateway["FastAPI Application Core<br/>• CORS Middleware & Dynamic Origins<br/>• Global Exception Handlers (404 / 422)<br/>• SPA Static Asset Serving & Health Probes"]
+        Route_Core["Dataset & Audit Endpoints<br/>• /api/v1/datasets (Upload, Profile, Delete)<br/>• /api/v1/audits (8 Quality Checks, Findings)"]
+        Route_Ops["Transformation & Export Endpoints<br/>• /api/v1/transformations (Preview & Apply)<br/>• /api/v1/compare & /history<br/>• /api/v1/export & /colab-notebook"]
 
-        APIClient -->|REST HTTP / JSON| FastAPIApp
-        FastAPIApp --> HealthRoute
-        FastAPIApp --> DatasetRoute
-        FastAPIApp --> AuditRoute
-        FastAPIApp --> TransformRoute
-        FastAPIApp --> CompareRoute
-        FastAPIApp --> ExportRoute
-        FastAPIApp --> SPARoute
+        API_Gateway --> Route_Core & Route_Ops
     end
 
-    subgraph Engines["Deterministic Domain Engines (Pandas / NumPy)"]
-        ProfilingEngine["ProfilingEngine (Descriptive Statistics)"]
-        AuditEngine["AuditEngine (8 Modular Quality Rules)"]
-        ScoringEngine["QualityScore (Penalty Deduction Model)"]
-        TransformEngine["TransformationEngine (Preview / Apply Parity)"]
-        ComparisonEngine["ComparisonService (Score & Metric Deltas)"]
-        ExportEngine["ExportService (Sanitization & Colab Notebook)"]
-
-        DatasetRoute --> ProfilingEngine
-        AuditRoute --> AuditEngine & ScoringEngine
-        TransformRoute --> TransformEngine
-        CompareRoute --> ComparisonEngine
-        ExportRoute --> ExportEngine
+    subgraph Domain ["3. Domain & Service Layer (Pandas / NumPy)"]
+        Engine_Audit["Audit & Profiling Services<br/>• AuditEngine (8 Modular Quality Rules)<br/>• QualityScore (Penalty Deduction Model 0–100)<br/>• ProfilingEngine (Descriptive Statistics)"]
+        Engine_Transform["Transformation & Lineage Services<br/>• TransformationEngine (Preview / Apply Parity)<br/>• ComparisonService (Score & Metric Deltas)<br/>• Version Lineage & Immutability DAG"]
+        Engine_Export["Export & Notebook Generator<br/>• ColabNotebookGenerator (Self-Contained .ipynb)<br/>• ExportService (CSV Sanitization, HTML/JSON)"]
     end
 
-    subgraph Storage["Persistence Layer (SQLite + Filesystem)"]
-        DB["SQLite Database (Metadata, Lineage, Audits, Findings)"]
-        DiskStore["StorageService (Immutable CSVs & Cached Profiles)"]
-
-        DatasetRoute --> DB & DiskStore
-        AuditRoute --> DB
-        TransformRoute --> DB & DiskStore
-        CompareRoute --> DB
-        ExportRoute --> DiskStore
+    subgraph Persistence ["4. Persistence & Storage Layer (SQLite + Filesystem)"]
+        DB["SQLite Relational Database<br/>• Foreign Key Enforced Schema (PRAGMA)<br/>• Datasets, Versions & Transformations<br/>• Audit Runs & Concrete Issue Findings"]
+        Storage["StorageService & Filesystem<br/>• Immutable Versioned CSV Storage<br/>• Path-Traversal Safe Storage Architecture<br/>• Cached Profiling Metrics"]
     end
+
+    API_Client -->|REST HTTP / JSON| API_Gateway
+    Route_Core --> Engine_Audit
+    Route_Ops --> Engine_Transform & Engine_Export
+    Engine_Audit --> DB & Storage
+    Engine_Transform --> DB & Storage
+    Engine_Export --> Storage
 ```
 
 > **Architecture Explanation**:  
-> DataLens enforces strict separation of concerns across four key tiers:
-> 1. **Frontend Layer**: Built with React 18, Vite, and modular CSS without heavy framework bloat. It communicates with the backend via a centralized API client with dynamic origin detection and unified error handling.
-> 2. **API Routing Layer**: FastAPI handles HTTP serialization, path parameter validation, HEAD health probes for load balancers, and production single-origin static file serving.
-> 3. **Domain Engines**: Pure Python modules leveraging Pandas and NumPy to execute statistical checks, compute transparent scores, simulate diffs, and generate starter notebooks. This layer has zero HTTP dependencies.
-> 4. **Persistence Layer**: An SQLite relational database with enforced foreign keys (`PRAGMA foreign_keys = ON;`) tracks lineage, audits, and findings, while `StorageService` manages immutable CSVs and profile caches on disk.
+> DataLens enforces strict separation of concerns across four decoupled architectural tiers:
+> 1. **Presentation Layer (React 18 + Vite)**: An interactive Single Page Application (SPA) structured into dedicated functional views (Dashboard, Profiler, Cleaning Wizard, Version Matrix, Export Center). All backend communication routes through a centralized API client that normalizes response envelopes, detects runtime origins dynamically, and manages typed blob downloads.
+> 2. **API Routing Layer (FastAPI + Uvicorn)**: A high-performance asynchronous gateway managing CORS security, request schema validation via Pydantic, unified error envelopes, and production SPA static file serving. It validates inputs and delegates operations to specialized domain services.
+> 3. **Domain & Service Layer (Pandas / NumPy)**: Zero-HTTP, deterministic business engines. `AuditEngine` executes the 8 modular quality checks, `QualityScore` computes bounded health scores (0–100), `TransformationEngine` guarantees identical execution between preview diffs and applied versions, and `ColabNotebookGenerator` packages datasets into self-contained Jupyter notebooks.
+> 4. **Persistence & Storage Layer (SQLite + Filesystem)**: Dual-model persistence. An SQLite relational database with enforced foreign keys (`PRAGMA foreign_keys = ON;`) records datasets, version lineage, audit records, and findings, while `StorageService` safeguards raw and transformed CSV files as immutable files on disk with path-traversal protection.
 
 ---
 
