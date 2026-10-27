@@ -1,5 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
-import { checkHealth, listDatasets, deleteDataset } from './api/client';
+import { checkHealth, deleteDataset } from './api/client';
+import { parseCurrentRoute, syncBrowserUrl } from './utils/navigation';
+import { useAppDispatch, useAppSelector } from './store';
+import {
+  navigate,
+  setVersionId,
+  setProfileColumn,
+  openPreview,
+  closePreview,
+  restoreRoute,
+  selectActiveView,
+  selectNavDatasetId,
+  selectNavVersionId,
+  selectNavProfileColumn,
+} from './store/navigationSlice';
+import {
+  fetchDatasets,
+  fetchDatasetById,
+  fetchPreviewDataset,
+  setSelectedDataset,
+  setPreviewingDataset,
+  datasetAdded,
+  datasetUpdated,
+  datasetDeleted,
+  selectAllDatasets,
+  selectDatasetsLoading,
+  selectDatasetsError,
+  selectSelectedDataset,
+  selectPreviewingDataset,
+  selectRouteDatasetLoading,
+} from './store/datasetsSlice';
+
 import LandingPage from './components/LandingPage';
 import AllDatasetsPage from './components/AllDatasetsPage';
 import PreviewModal from './components/PreviewModal';
@@ -9,17 +40,24 @@ import CompareView from './components/CompareView';
 import ExportCenter from './components/ExportCenter';
 
 export default function App() {
+  const dispatch = useAppDispatch();
+
+  // Redux Selectors
+  const activeView = useAppSelector(selectActiveView);
+  const navDatasetId = useAppSelector(selectNavDatasetId);
+  const navVersionId = useAppSelector(selectNavVersionId);
+  const navProfileColumn = useAppSelector(selectNavProfileColumn);
+
+  const datasets = useAppSelector(selectAllDatasets);
+  const datasetsLoading = useAppSelector(selectDatasetsLoading);
+  const apiError = useAppSelector(selectDatasetsError);
+  const selectedDataset = useAppSelector(selectSelectedDataset);
+  const previewingDataset = useAppSelector(selectPreviewingDataset);
+  const routeDatasetLoading = useAppSelector(selectRouteDatasetLoading);
+
+  // Local Health Check State
   const [health, setHealth] = useState(null);
   const [healthLoading, setHealthLoading] = useState(true);
-  const [datasets, setDatasets] = useState([]);
-  const [datasetsLoading, setDatasetsLoading] = useState(true);
-  const [apiError, setApiError] = useState(null);
-
-  // Active view state: 'landing' | 'all-datasets' | 'audit' | 'profile' | 'compare'
-  const [activeView, setActiveView] = useState('landing');
-  const [selectedDataset, setSelectedDataset] = useState(null);
-  const [previewingDataset, setPreviewingDataset] = useState(null);
-  const [selectedProfileColumn, setSelectedProfileColumn] = useState(null);
 
   const fetchHealth = async () => {
     setHealthLoading(true);
@@ -33,72 +71,235 @@ export default function App() {
     }
   };
 
-  const fetchDatasets = useCallback(async () => {
-    setDatasetsLoading(true);
-    setApiError(null);
-    try {
-      const response = await listDatasets();
-      setDatasets(response.datasets || []);
-    } catch (err) {
-      setApiError(err.message || 'Unable to connect to backend server');
-    } finally {
-      setDatasetsLoading(false);
-    }
-  }, []);
-
+  // Initial load and URL synchronization
   useEffect(() => {
     fetchHealth();
-    fetchDatasets();
-  }, [fetchDatasets]);
+    dispatch(fetchDatasets());
 
-  const handleUploadSuccess = (newDataset) => {
-    setDatasets((prev) => [newDataset, ...prev.filter((d) => d.id !== newDataset.id)]);
-  };
+    const initial = parseCurrentRoute();
+    // Synchronize initial URL cleanly
+    syncBrowserUrl(initial, true);
 
-  const handleDelete = async (datasetId) => {
-    try {
-      await deleteDataset(datasetId);
-      setDatasets((prev) => prev.filter((d) => d.id !== datasetId));
-      if (selectedDataset && selectedDataset.id === datasetId) {
-        setSelectedDataset(null);
-        setActiveView('all-datasets');
+    // If initial route has a dataset ID, verify and fetch freshest metadata
+    if (initial.datasetId) {
+      dispatch(fetchDatasetById(initial.datasetId))
+        .unwrap()
+        .catch(() => {
+          // If dataset was deleted or not found, fall back to all-datasets
+          if (
+            initial.view === 'audit' ||
+            initial.view === 'profile' ||
+            initial.view === 'compare'
+          ) {
+            dispatch(navigate({ view: 'all-datasets', datasetId: null, replace: true }));
+          }
+        });
+    }
+
+    // If initial route opened a preview modal
+    if (initial.previewId) {
+      dispatch(fetchPreviewDataset(initial.previewId));
+    }
+  }, [dispatch]);
+
+  // Listen for browser Back/Forward (popstate) navigation events
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseCurrentRoute();
+      dispatch(restoreRoute(route));
+
+      if (route.datasetId) {
+        if (!selectedDataset || selectedDataset.id !== route.datasetId) {
+          dispatch(fetchDatasetById(route.datasetId));
+        }
+      } else {
+        dispatch(setSelectedDataset(null));
       }
-    } catch (err) {
-      alert(`Failed to delete dataset: ${err.message}`);
-    }
-  };
 
-  const handleViewAudit = (dataset) => {
-    setSelectedDataset(dataset);
-    setActiveView('audit');
-  };
+      if (route.previewId) {
+        dispatch(fetchPreviewDataset(route.previewId));
+      } else {
+        dispatch(setPreviewingDataset(null));
+      }
+    };
 
-  const handleViewProfile = (dataset) => {
-    setSelectedDataset(dataset);
-    setActiveView('profile');
-  };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [dispatch, selectedDataset]);
 
-  const handleViewCompare = (dataset) => {
-    setSelectedDataset(dataset);
-    setActiveView('compare');
-  };
+  // Handlers for Redux Actions
+  const handleUploadSuccess = useCallback(
+    (newDataset) => {
+      dispatch(datasetAdded(newDataset));
+    },
+    [dispatch]
+  );
 
-  const handleNavigateHome = () => {
-    setSelectedDataset(null);
-    setActiveView('landing');
-  };
+  const handleDelete = useCallback(
+    async (datasetId) => {
+      try {
+        await deleteDataset(datasetId);
+        dispatch(datasetDeleted(datasetId));
+        if (selectedDataset && selectedDataset.id === datasetId) {
+          dispatch(navigate({ view: 'all-datasets', datasetId: null, replace: true }));
+        }
+      } catch (err) {
+        alert(`Failed to delete dataset: ${err.message}`);
+      }
+    },
+    [dispatch, selectedDataset]
+  );
 
-  const handleNavigateAllDatasets = () => {
-    setSelectedDataset(null);
-    setActiveView('all-datasets');
-  };
+  const handleViewAudit = useCallback(
+    (dataset, versionId = null) => {
+      dispatch(setSelectedDataset(dataset));
+      dispatch(
+        navigate({
+          view: 'audit',
+          datasetId: dataset.id,
+          versionId: versionId || dataset.current_version_id || null,
+          col: null,
+          previewId: null,
+        })
+      );
+    },
+    [dispatch]
+  );
 
-  const handleNavigateExport = (dataset = null) => {
-    if (dataset) {
-      setSelectedDataset(dataset);
-    }
-    setActiveView('export');
-  };
+  const handleViewProfile = useCallback(
+    (dataset, colName = null) => {
+      dispatch(setSelectedDataset(dataset));
+      dispatch(
+        navigate({
+          view: 'profile',
+          datasetId: dataset.id,
+          col: colName || null,
+          previewId: null,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  const handleViewCompare = useCallback(
+    (dataset) => {
+      dispatch(setSelectedDataset(dataset));
+      dispatch(
+        navigate({
+          view: 'compare',
+          datasetId: dataset.id,
+          col: null,
+          previewId: null,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  const handleNavigateHome = useCallback(() => {
+    dispatch(setSelectedDataset(null));
+    dispatch(
+      navigate({
+        view: 'landing',
+        datasetId: null,
+        versionId: null,
+        col: null,
+        previewId: null,
+      })
+    );
+  }, [dispatch]);
+
+  const handleNavigateAllDatasets = useCallback(() => {
+    dispatch(setSelectedDataset(null));
+    dispatch(
+      navigate({
+        view: 'all-datasets',
+        datasetId: null,
+        versionId: null,
+        col: null,
+        previewId: null,
+      })
+    );
+  }, [dispatch]);
+
+  const handleNavigateExport = useCallback(
+    (dataset = null, versionId = null) => {
+      const target = dataset || selectedDataset;
+      if (target) {
+        dispatch(setSelectedDataset(target));
+      }
+      dispatch(
+        navigate({
+          view: 'export',
+          datasetId: target?.id || null,
+          versionId: versionId || navVersionId || target?.current_version_id || null,
+          col: null,
+          previewId: null,
+        })
+      );
+    },
+    [dispatch, selectedDataset, navVersionId]
+  );
+
+  const handleVersionChange = useCallback(
+    (newVersionId) => {
+      dispatch(setVersionId(newVersionId));
+    },
+    [dispatch]
+  );
+
+  const handleProfileColumnChange = useCallback(
+    (colName) => {
+      dispatch(setProfileColumn(colName));
+    },
+    [dispatch]
+  );
+
+  const handleExportDatasetChange = useCallback(
+    (newId) => {
+      const match = datasets.find((d) => d.id === newId) || null;
+      if (match) {
+        dispatch(setSelectedDataset(match));
+      }
+      dispatch(
+        navigate({
+          view: 'export',
+          datasetId: newId,
+          versionId: match?.current_version_id || null,
+          replace: true,
+        })
+      );
+    },
+    [dispatch, datasets]
+  );
+
+  const handleExportVersionChange = useCallback(
+    (newVersionId) => {
+      dispatch(setVersionId(newVersionId));
+    },
+    [dispatch]
+  );
+
+  const handleDatasetUpdate = useCallback(
+    (updatedDataset) => {
+      if (!updatedDataset || !updatedDataset.id) return;
+      dispatch(datasetUpdated(updatedDataset));
+    },
+    [dispatch]
+  );
+
+  const handleOpenPreview = useCallback(
+    (ds) => {
+      dispatch(setPreviewingDataset(ds));
+      dispatch(openPreview(ds.id));
+    },
+    [dispatch]
+  );
+
+  const handleClosePreview = useCallback(() => {
+    dispatch(setPreviewingDataset(null));
+    dispatch(closePreview());
+  }, [dispatch]);
 
   return (
     <div className="app-container">
@@ -158,7 +359,10 @@ export default function App() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* Contextual Back Button when inside details */}
-          {(activeView === 'audit' || activeView === 'profile' || activeView === 'compare' || activeView === 'export') && (
+          {(activeView === 'audit' ||
+            activeView === 'profile' ||
+            activeView === 'compare' ||
+            activeView === 'export') && (
             <button
               className="btn btn-outline"
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
@@ -197,7 +401,7 @@ export default function App() {
             <button
               className="btn btn-outline"
               style={{ fontSize: '0.8rem', padding: '0.3rem 0.6rem' }}
-              onClick={fetchDatasets}
+              onClick={() => dispatch(fetchDatasets())}
             >
               Retry
             </button>
@@ -210,11 +414,11 @@ export default function App() {
             datasets={datasets}
             loading={datasetsLoading}
             error={apiError}
-            onRefresh={fetchDatasets}
+            onRefresh={() => dispatch(fetchDatasets())}
             onUploadSuccess={handleUploadSuccess}
             onOpenDataset={handleViewAudit}
             onViewProfile={handleViewProfile}
-            onPreviewDataset={(ds) => setPreviewingDataset(ds)}
+            onPreviewDataset={handleOpenPreview}
             onNavigateToAllDatasets={handleNavigateAllDatasets}
           />
         )}
@@ -225,10 +429,10 @@ export default function App() {
             datasets={datasets}
             loading={datasetsLoading}
             error={apiError}
-            onRefresh={fetchDatasets}
+            onRefresh={() => dispatch(fetchDatasets())}
             onOpenAudit={handleViewAudit}
             onViewProfile={handleViewProfile}
-            onPreview={(ds) => setPreviewingDataset(ds)}
+            onPreview={handleOpenPreview}
             onCompare={handleViewCompare}
             onDelete={handleDelete}
             onBackToHome={handleNavigateHome}
@@ -239,13 +443,15 @@ export default function App() {
         {activeView === 'audit' && selectedDataset && (
           <AuditDashboard
             dataset={selectedDataset}
+            initialVersionId={navVersionId}
+            onVersionChange={handleVersionChange}
+            onDatasetUpdate={handleDatasetUpdate}
             onBack={handleNavigateAllDatasets}
             onSwitchToProfile={(colName) => {
-              setSelectedProfileColumn(colName || null);
-              setActiveView('profile');
+              handleViewProfile(selectedDataset, colName);
             }}
-            onSwitchToPreview={() => setPreviewingDataset(selectedDataset)}
-            onSwitchToCompare={() => setActiveView('compare')}
+            onSwitchToPreview={() => handleOpenPreview(selectedDataset)}
+            onSwitchToCompare={() => handleViewCompare(selectedDataset)}
             onSwitchToExport={() => handleNavigateExport(selectedDataset)}
           />
         )}
@@ -254,18 +460,19 @@ export default function App() {
         {activeView === 'profile' && selectedDataset && (
           <ProfileView
             dataset={selectedDataset}
-            initialColumnName={selectedProfileColumn}
+            initialColumnName={navProfileColumn}
+            onColumnChange={handleProfileColumnChange}
             onBack={handleNavigateAllDatasets}
-            onBackToAudit={() => setActiveView('audit')}
-            onNavigateToCompare={() => setActiveView('compare')}
+            onBackToAudit={() => handleViewAudit(selectedDataset)}
+            onNavigateToCompare={() => handleViewCompare(selectedDataset)}
           />
         )}
 
         {/* View 5: Multi-Version Comparison */}
-        {activeView === 'compare' && selectedDataset && (
+        {activeView === 'compare' && (selectedDataset || navDatasetId) && (
           <CompareView
-            datasetId={selectedDataset.id}
-            onBackToAudit={() => setActiveView('audit')}
+            datasetId={selectedDataset?.id || navDatasetId}
+            onBackToAudit={() => handleViewAudit(selectedDataset || { id: navDatasetId })}
             onBackToDatasets={handleNavigateAllDatasets}
           />
         )}
@@ -274,18 +481,67 @@ export default function App() {
         {activeView === 'export' && (
           <ExportCenter
             datasets={datasets}
-            initialDatasetId={selectedDataset?.id || null}
-            initialVersionId={selectedDataset?.current_version_id || null}
+            initialDatasetId={selectedDataset?.id || navDatasetId || null}
+            initialVersionId={navVersionId || selectedDataset?.current_version_id || null}
+            onDatasetChange={handleExportDatasetChange}
+            onVersionChange={handleExportVersionChange}
             onNavigateToAudit={handleViewAudit}
             onNavigateToDatasets={handleNavigateAllDatasets}
           />
+        )}
+
+        {/* Loading state for single dataset views when selectedDataset is resolving */}
+        {(activeView === 'audit' || activeView === 'profile') && !selectedDataset && (
+          <div
+            className="card"
+            style={{
+              textAlign: 'center',
+              padding: '3.5rem 2rem',
+              margin: '3rem auto',
+              maxWidth: '540px',
+            }}
+          >
+            {routeDatasetLoading ? (
+              <>
+                <div
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '3px solid #e2e8f0',
+                    borderTopColor: 'var(--primary)',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    margin: '0 auto 1.25rem',
+                  }}
+                />
+                <h3 style={{ marginBottom: '0.5rem', fontSize: '1.25rem', color: 'var(--text-main)' }}>
+                  Loading Dataset...
+                </h3>
+                <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                  Retrieving dataset metadata and audit parameters.
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 style={{ marginBottom: '0.5rem', fontSize: '1.25rem', color: 'var(--danger)' }}>
+                  Dataset Not Found
+                </h3>
+                <p style={{ color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                  The requested dataset could not be found or has been removed.
+                </p>
+                <button className="btn btn-primary" onClick={handleNavigateAllDatasets}>
+                  &larr; View All Datasets
+                </button>
+              </>
+            )}
+          </div>
         )}
 
         {/* Bounded Dataset Preview Modal Overlay */}
         {previewingDataset && (
           <PreviewModal
             dataset={previewingDataset}
-            onClose={() => setPreviewingDataset(null)}
+            onClose={handleClosePreview}
           />
         )}
       </main>

@@ -15,6 +15,8 @@ export default function ExportCenter({
   datasets: initialDatasets = [],
   initialDatasetId = null,
   initialVersionId = null,
+  onDatasetChange,
+  onVersionChange,
   onNavigateToAudit,
   onNavigateToDatasets,
 }) {
@@ -142,6 +144,9 @@ export default function ExportCenter({
   const handleDatasetChange = (e) => {
     const newId = e.target.value;
     setSelectedDatasetId(newId);
+    if (onDatasetChange) {
+      onDatasetChange(newId);
+    }
     setCsvError(null);
     setCsvSuccess(null);
     setReportError(null);
@@ -555,6 +560,9 @@ export default function ExportCenter({
                   value={selectedVersionId}
                   onChange={(e) => {
                     setSelectedVersionId(e.target.value);
+                    if (onVersionChange) {
+                      onVersionChange(e.target.value);
+                    }
                     setCsvError(null);
                     setCsvSuccess(null);
                   }}

@@ -13,19 +13,19 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 21:15 IST
+- **Last updated:** 2026-10-28 00:20 IST
 - **Branch:** `main`
 - **HEAD commit:** `a7cd75e`
-- **Git status:** Clean build, 99 automated pytest tests passing in 3.10s, 0 frontend build errors.
-- **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
+- **Git status:** Clean build, 106 automated pytest tests passing in 3.02s, 0 frontend build errors.
+- **Frontend entry point:** `frontend/src/main.jsx` (Vite + React + Redux Toolkit, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, export endpoints, and production SPA serving)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced and auto-creating parent directories.
 - **Upload/storage directory:** `./storage` (git-ignored, versioned dataset storage, managed via `StorageService`)
 - **Frontend run command:** `cd frontend && npm run dev`
 - **Backend run command:** `.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload`
-- **Test commands:** `.venv/bin/pytest -v` (backend, 99/99 passed) and `cd frontend && npm run build` (frontend, 0 errors)
+- **Test commands:** `.venv/bin/pytest -v` (backend, 106/106 passed) and `cd frontend && npm run build` (frontend, 0 errors)
 - **Environment variable names:** `DATALENS_ENV`, `DATALENS_HOST`, `DATALENS_PORT`, `DATABASE_URL`, `STORAGE_DIR`, `MAX_UPLOAD_SIZE_BYTES`, `CORS_ORIGINS`, `VITE_API_BASE_URL`
-- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint (GET + HEAD 200 OK), production Vite frontend build, same-origin SPA static serving, Dockerfile, docker-compose.yml, and all 99 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
+- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint (GET + HEAD 200 OK), production Vite frontend build, same-origin SPA static serving, Dockerfile, docker-compose.yml, and all 106 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
 - **Important architecture notes:** Arch Linux host requires Python installations in `.venv/`. Core audit and cleaning logic remains deterministic without external LLM dependencies.
 
 ## 3. Feature Status Matrix
@@ -621,8 +621,36 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
     - `test_colab_notebook_endpoint_current_version` (verifies shortcut route).
     - `test_colab_notebook_endpoint_not_found` (verifies 404s).
     - `test_colab_notebook_oversized_dataset_rejected` (verifies explicit 400 rejection for oversized datasets).
-  - **All 99 backend tests passing** in 3.10s.
+  - **All 106 backend tests passing** in 3.02s.
   - Production Vite frontend build passing cleanly in 921ms.
+
+### Phase 13 — Redux Toolkit State Architecture, Secure Session View Persistence & XSS Hardening
+- **Goal:** Resolve page-refresh reset issue where reloading in the browser dropped users back to the landing page, and implement an enterprise Redux Toolkit architecture paired with hardened ephemeral `sessionStorage` persistence and XSS/prototype pollution defenses.
+- **Components & Fixes Implemented:**
+  1. **Redux Store Architecture (`frontend/src/store/`):**
+     - Installed `@reduxjs/toolkit` and `react-redux`.
+     - `frontend/src/store/navigationSlice.js`: Manages `view`, `datasetId`, `versionId`, `col`, and `previewId` with actions (`navigate`, `setVersionId`, `setProfileColumn`, `openPreview`, `closePreview`, `restoreRoute`).
+     - `frontend/src/store/datasetsSlice.js`: Manages datasets inventory and selected dataset metadata with async thunks (`fetchDatasets`, `fetchDatasetById`, `fetchPreviewDataset`) and reducers (`datasetAdded`, `datasetUpdated`, `datasetDeleted`, `setSelectedDataset`).
+     - `frontend/src/store/index.js`: Configures Redux store, Redux DevTools, and exports typed `useAppDispatch` and `useAppSelector` hooks.
+     - `frontend/src/main.jsx`: Wrapped application in `<Provider store={store}>`.
+  2. **Security & Ephemeral Persistence Middleware (`frontend/src/store/middleware/securePersistenceMiddleware.js`):**
+     - Intercepts navigation and dataset actions to synchronize browser address bar via `window.history.pushState` / `replaceState`.
+     - Persists minimal sanitized state to ephemeral `sessionStorage` (survives tab reloads, zero persistent footprint on user disk, automatically destroyed on tab close).
+  3. **Security Hardening (`frontend/src/utils/navigation.js`):**
+     - Strict allowlist validation (`sanitizeView`).
+     - Alphanumeric ID sanitization (`sanitizeId`) enforcing `/^[a-zA-Z0-9_-]{1,64}$/` to block script tags and path traversal.
+     - Column name sanitization (`sanitizeColumnName`) stripping HTML tags, quotes, backslashes, and control characters to prevent DOM-based XSS.
+     - Prototype pollution defense (`safeJsonParse`) stripping `__proto__`, `constructor`, and `prototype`.
+     - Data minimization (`sanitizeDatasetMeta`) ensuring no raw rows or private data are cached.
+     - Proactive legacy cleanup (`purgeLegacyStorage`) auto-purging old `localStorage` keys on startup.
+  4. **Browser Navigation & Popstate Support (`frontend/src/App.jsx`):**
+     - Listens to `popstate` events to provide natural browser Back and Forward navigation across all views.
+     - Displays sleek loading card when accessing direct dataset routes before metadata resolution, and handles 404s gracefully.
+- **Automated Verification:**
+  - Automated Redux & Security unit test suites verified.
+  - Production Vite build passing in 1.11s with 0 errors.
+  - All 106 backend pytest tests passing.
+
 
 
 

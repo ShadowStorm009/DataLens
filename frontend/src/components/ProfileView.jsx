@@ -4,6 +4,7 @@ import { getDatasetProfile, listAudits, getAudit } from '../api/client';
 export default function ProfileView({
   dataset,
   initialColumnName = null,
+  onColumnChange,
   onBack,
   onBackToAudit,
   onNavigateToCompare,
@@ -22,6 +23,13 @@ export default function ProfileView({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('index'); // 'index' | 'name' | 'nulls' | 'findings'
 
+  const handleSelectColumn = (colName) => {
+    setSelectedColName(colName);
+    if (onColumnChange) {
+      onColumnChange(colName);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
@@ -39,7 +47,11 @@ export default function ProfileView({
           const match = initialColumnName
             ? profileData.columns.find((c) => c.name === initialColumnName)
             : null;
-          setSelectedColName(match ? match.name : profileData.columns[0].name);
+          const chosenName = match ? match.name : profileData.columns[0].name;
+          setSelectedColName(chosenName);
+          if (onColumnChange && chosenName !== initialColumnName) {
+            onColumnChange(chosenName);
+          }
         }
 
         // Fetch latest audit findings in parallel for finding integration
@@ -113,11 +125,11 @@ export default function ProfileView({
   const hasNext = currentIndex >= 0 && currentIndex < columns.length - 1;
 
   const handleSelectPrevious = () => {
-    if (hasPrevious) setSelectedColName(columns[currentIndex - 1].name);
+    if (hasPrevious) handleSelectColumn(columns[currentIndex - 1].name);
   };
 
   const handleSelectNext = () => {
-    if (hasNext) setSelectedColName(columns[currentIndex + 1].name);
+    if (hasNext) handleSelectColumn(columns[currentIndex + 1].name);
   };
 
   if (loading) {
@@ -820,7 +832,7 @@ export default function ProfileView({
                       className="btn btn-outline"
                       style={{ fontSize: '0.75rem', padding: '0.2rem 0.55rem' }}
                       onClick={() => {
-                        setSelectedColName(col.name);
+                        handleSelectColumn(col.name);
                         setViewMode('detail');
                       }}
                     >
@@ -987,7 +999,7 @@ export default function ProfileView({
                 return (
                   <button
                     key={col.name}
-                    onClick={() => setSelectedColName(col.name)}
+                    onClick={() => handleSelectColumn(col.name)}
                     style={{
                       display: 'flex',
                       flexDirection: 'column',

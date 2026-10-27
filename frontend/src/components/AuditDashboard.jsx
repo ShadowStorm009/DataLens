@@ -15,6 +15,9 @@ import CleaningPanel from './CleaningPanel';
 
 export default function AuditDashboard({
   dataset,
+  initialVersionId = null,
+  onVersionChange,
+  onDatasetUpdate,
   onBack,
   onSwitchToProfile,
   onSwitchToPreview,
@@ -22,7 +25,9 @@ export default function AuditDashboard({
   onSwitchToExport,
 }) {
   const [versions, setVersions] = useState([]);
-  const [selectedVersionId, setSelectedVersionId] = useState(dataset.current_version_id);
+  const [selectedVersionId, setSelectedVersionId] = useState(
+    initialVersionId || dataset.current_version_id
+  );
   const [audit, setAudit] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,6 +118,9 @@ export default function AuditDashboard({
 
   const handleVersionChange = (newVId) => {
     setSelectedVersionId(newVId);
+    if (onVersionChange) {
+      onVersionChange(newVId);
+    }
   };
 
   const handleRunNewAudit = async () => {
@@ -261,10 +269,16 @@ export default function AuditDashboard({
     if (res.result_version_id) {
       dataset.current_version_id = res.result_version_id;
       setSelectedVersionId(res.result_version_id);
+      if (onVersionChange) {
+        onVersionChange(res.result_version_id);
+      }
     }
     if (res.result_version) {
       dataset.row_count = res.result_version.row_count;
       dataset.column_count = res.result_version.column_count;
+    }
+    if (onDatasetUpdate) {
+      onDatasetUpdate({ ...dataset });
     }
     setTransformationSuccess(
       res.summary || 'Transformation successfully applied and new version created!'
