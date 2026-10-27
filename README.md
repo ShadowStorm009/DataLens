@@ -13,7 +13,7 @@
 > [!IMPORTANT]
 > **Submission Video & Artifacts**:  
 > **Google Drive Link:** [https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE](https://drive.google.com/drive/folders/YOUR_DATA_LENS_DEMO_FOLDER_LINK_HERE?usp=sharing)  
-> **Live Working Link :**(https://data-lens-pi-two.vercel.app/)*
+> **Live Working Link :**https://data-lens-pi-two.vercel.app
 
 ---
 
