@@ -13,6 +13,7 @@ services:
       - DATALENS_ENV=production
       - DATALENS_HOST=0.0.0.0
       - DATALENS_PORT=8000
+      - PORT=8000
       - DATABASE_URL=sqlite:////app/storage/datalens.db
       - STORAGE_DIR=/app/storage
       - MAX_UPLOAD_SIZE_BYTES=10485760

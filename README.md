@@ -399,10 +399,37 @@ DataLens maintains a comprehensive test suite of **98 unit, integration, and end
 ## 13. Production Deployment Guide
 
 > [!NOTE]
-> **Deployment Status**: External cloud hosting deployment is **NOT verified** in this repository because remote cloud provider access and credentials (e.g., AWS, GCP, Render, Vercel) are not provided.  
-> Local development, 98/98 automated backend tests, daemonized server execution, and production frontend compilation (`npm run build`) are **100% verified**.
+> **Production Architecture**: DataLens is designed for decoupled cloud deployment with the FastAPI backend hosted on **Render** (as a Docker Web Service with an attached Persistent Disk) and the React frontend hosted on **Vercel**. It can also run as an all-in-one container locally via Docker Compose. Detailed deployment steps are provided below and in the dedicated [Deployment Guide](docs/deployment.md).
 
-### Docker & Docker Compose (Containerized)
+### Cloud Deployment: Render (Backend) + Vercel (Frontend)
+
+#### 1. Backend on Render (Docker Web Service)
+1. In the [Render Dashboard](https://dashboard.render.com/), create a **New Web Service** from your GitHub repository.
+2. Select runtime **Docker** and keep the root directory blank (the `Dockerfile` is at the repo root).
+3. Set Environment Variables:
+   - `DATALENS_ENV`: `production`
+   - `DATALENS_HOST`: `0.0.0.0`
+   - `DATABASE_URL`: `sqlite:////app/storage/datalens.db`
+   - `STORAGE_DIR`: `/app/storage`
+   - `CORS_ORIGINS`: `https://<your-vercel-domain>.vercel.app` (comma-separated, no trailing slashes)
+4. Set Health Check Path: `/health` (supports `GET` and `HEAD`).
+5. **Attach Persistent Disk (Critical)**:
+   - Go to the **Disks** tab and add a disk mounted at `/app/storage` (1 GB+).
+   - *Why required*: Docker containers on Render have ephemeral filesystems; without a persistent disk, uploaded CSVs and SQLite database tables are wiped on redeployment or restart.
+   - *Instance constraint*: Keep instance count at `1`. SQLite is single-node and cannot safely share disk writes across multiple concurrent instances.
+6. Deploy and verify health at `https://<your-render-app>.onrender.com/health`.
+
+#### 2. Frontend on Vercel
+1. In the [Vercel Dashboard](https://vercel.com/dashboard), import the repository.
+2. Set **Root Directory** to `frontend`.
+3. Set **Framework Preset** to `Vite`.
+4. Add Environment Variable:
+   - `VITE_API_BASE_URL`: `https://<your-render-app>.onrender.com/api/v1`
+5. Deploy. After deployment, copy your Vercel URL and add it to `CORS_ORIGINS` in Render!
+
+---
+
+### Docker & Docker Compose (Local / All-In-One Container)
 
 The repository includes a production-ready, multi-stage [`Dockerfile`](Dockerfile) and [`docker-compose.yml`](docker-compose.yml) that packages both the compiled React frontend and the FastAPI backend into a single lightweight container.
 
@@ -419,7 +446,7 @@ curl -I http://localhost:8000/health
 
 > [!CAUTION]
 > **Persistent Storage Volume Requirement**:  
-> The SQLite database (`/app/storage/datalens.db`) and versioned CSVs (`/app/storage/*.csv`) **must** reside on a persistent volume mount (such as the `datalens_data` volume configured in `docker-compose.yml`). Storing `/app/storage` on an ephemeral container layer will cause all uploaded datasets and audit histories to be lost upon container restart.
+> The SQLite database (`/app/storage/datalens.db`) and versioned CSVs (`/app/storage/*.csv`) **must** reside on a persistent volume mount (such as the `datalens_data` volume configured in `docker-compose.yml` or a Render Persistent Disk mounted at `/app/storage`). Storing `/app/storage` on an ephemeral container layer will cause all uploaded datasets and audit histories to be lost upon container restart.
 
 ---
 

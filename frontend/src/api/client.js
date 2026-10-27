@@ -1,8 +1,26 @@
 // DataLens API Client
 
+/**
+ * Normalizes an API base URL so that it reliably terminates in '/api/v1'
+ * without duplicate or missing segments, regardless of trailing slashes or subpaths.
+ */
+export function normalizeApiBaseUrl(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let cleaned = raw.trim().replace(/\/+$/, '');
+  if (!cleaned) return '';
+  if (!cleaned.endsWith('/api/v1')) {
+    if (cleaned.endsWith('/api')) {
+      cleaned = `${cleaned}/v1`;
+    } else {
+      cleaned = `${cleaned}/api/v1`;
+    }
+  }
+  return cleaned;
+}
+
 const API_BASE_URL = (() => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+  if (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_API_BASE_URL) {
+    return normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   }
   if (typeof window !== 'undefined') {
     // In Vite dev mode (port 5173), default to local backend on 8000
@@ -16,8 +34,10 @@ const API_BASE_URL = (() => {
 })();
 
 const HEALTH_URL = (() => {
-  if (import.meta.env.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL.replace(/\/api\/v1\/?$/, '') + '/health';
+  if (typeof import.meta !== 'undefined' && import.meta?.env?.VITE_API_BASE_URL) {
+    const raw = import.meta.env.VITE_API_BASE_URL.trim().replace(/\/+$/, '');
+    const origin = raw.replace(/\/api(\/v1)?\/?$/, '');
+    return `${origin}/health`;
   }
   if (typeof window !== 'undefined') {
     if (window.location.port === '5173') {

@@ -2,17 +2,13 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
-from backend.app.core.config import settings
+from backend.app.core.config import settings, ensure_sqlite_parent_dir
 from backend.app.db.base import Base
 
 # Configure SQLite engine with foreign key enforcement
 connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
 
-if settings.DATABASE_URL.startswith("sqlite"):
-    clean_path = settings.DATABASE_URL.replace("sqlite:///", "").split("?")[0]
-    if clean_path and clean_path != ":memory:":
-        from pathlib import Path
-        Path(clean_path).resolve().parent.mkdir(parents=True, exist_ok=True)
+ensure_sqlite_parent_dir(settings.DATABASE_URL)
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -42,4 +38,5 @@ def init_db(engine_to_use=None) -> None:
     """Initialize database tables for all registered models."""
     import backend.app.models  # Ensure all models are imported
     target_engine = engine_to_use or engine
+    ensure_sqlite_parent_dir(str(target_engine.url))
     Base.metadata.create_all(bind=target_engine)
