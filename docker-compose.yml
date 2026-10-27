@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  datalens:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datalens:latest
+    container_name: datalens-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATALENS_ENV=production
+      - DATALENS_HOST=0.0.0.0
+      - DATALENS_PORT=8000
+      - DATABASE_URL=sqlite:////app/storage/datalens.db
+      - STORAGE_DIR=/app/storage
+      - MAX_UPLOAD_SIZE_BYTES=10485760
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://localhost:8000
+    volumes:
+      # Crucial: Mount host directory or named volume for persistent SQLite DB and CSV storage
+      - datalens_data:/app/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  datalens_data:
+    driver: local

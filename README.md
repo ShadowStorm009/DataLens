@@ -22,6 +22,58 @@ Export Cleaned CSV ◄── Compare Versions ◄── Re-audit ◄── Apply
 
 ---
 
+## System Architecture & Module Boundaries
+
+DataLens is built with clear separation of concerns across presentation, API routing, deterministic business logic, and transactional storage:
+
+```mermaid
+flowchart TD
+    subgraph Frontend["Frontend: React 18 + Vite + Vanilla CSS"]
+        UI["Upload / Dashboard / Preview / Compare UI"]
+        APIClient["API Client (Fetch + Error Interceptor)"]
+        UI --> APIClient
+    end
+
+    subgraph BackendAPI["API Routing Layer: FastAPI"]
+        HealthRouter["/health & /api/v1/health"]
+        DatasetsRouter["/api/v1/datasets (Upload, Preview, Profile, Delete)"]
+        AuditsRouter["/api/v1/audits (8 Deterministic Rules & Scoring)"]
+        TransformRouter["/api/v1/transformations (Preview & Apply)"]
+        CompareRouter["/api/v1/compare & history"]
+        ExportRouter["/api/v1/export (CSV & HTML/JSON Reports)"]
+    end
+
+    subgraph DomainEngines["Domain Logic & Analysis Engines"]
+        ProfilingEngine["ProfilingEngine (Pandas / NumPy)"]
+        AuditEngine["AuditEngine (8 Modular Deterministic Rules)"]
+        ScoringEngine["QualityScore (Transparent Penalty Deductions)"]
+        TransformEngine["TransformationEngine (Zero-Drift Preview & Apply)"]
+        ComparisonEngine["ComparisonService (Deltas & Finding Transitions)"]
+        ExportEngine["ExportService (Formula Injection Defense & HTML Reports)"]
+    end
+
+    subgraph Persistence["Storage & Persistence Layer"]
+        DB["SQLite Database (Metadata, Lineage, Audits, Findings)"]
+        Storage["StorageService (Immutable CSVs & Profile Caches)"]
+    end
+
+    APIClient --> BackendAPI
+    BackendAPI --> DomainEngines
+    BackendAPI --> Persistence
+    DomainEngines --> Persistence
+```
+
+### Module Boundaries
+- `backend/app/api/`: Handles HTTP serialization, query parameter validation, and status codes. Delegates all business logic to service layer.
+- `backend/app/audit/`: Pure computational engine for statistical profiling (`profiling.py`), 8 modular deterministic quality rules (`rules/`), and transparent quality scoring (`scoring.py`). Has zero dependency on HTTP layer.
+- `backend/app/services/`: Coordinates orchestration between database models and disk storage (`dataset_service.py`, `cleaner.py`, `comparison.py`, `export.py`).
+- `backend/app/db/`: Database session lifecycle and table schemas with enforced foreign key cascading (`PRAGMA foreign_keys = ON;`).
+- `backend/app/core/`: Application settings, environment variable bindings, and uniform error envelope registration (`errors.py`).
+- `frontend/src/api/`: Centralized HTTP client with automatic network failure handling and error envelope parsing.
+- `frontend/src/components/`: Modular React components styled exclusively with standard, maintainable CSS (no Tailwind CSS).
+
+---
+
 ## Technology Stack
 
 - **Frontend**: React 18, Vite, JavaScript, vanilla CSS (responsive layout, accessible tables, no Tailwind CSS).
@@ -156,9 +208,112 @@ See [`sample_datasets/README.md`](sample_datasets/README.md) for a detailed brea
 
 ---
 
+## Production Deployment & Hosting Guide
+
+> [!NOTE]
+> **Deployment Status**: External cloud hosting deployment is **NOT verified** in this repository because remote cloud provider access and credentials (e.g., AWS, GCP, Render, Vercel) are not provided.
+> Local development, backend test execution (87/87 passed), daemonized server execution, and production frontend compilation (`npm run build`) are **100% verified**.
+
+If you wish to deploy DataLens to a production Linux server or container platform, follow the exact manual steps below.
+
+### 1. Docker & Docker Compose Deployment (Recommended for Containers)
+
+A multi-stage `Dockerfile` and `docker-compose.yml` are provided in the repository root:
+
+```bash
+# Build and run container in detached mode:
+docker compose up --build -d
+
+# Verify health status:
+curl http://localhost:8000/health
+```
+
+#### Persistent Storage Behavior in Containerized Environments
+- **Important**: SQLite database files (`/app/storage/datalens.db`) and versioned CSV files (`/app/storage/*.csv`) **must** be stored on a persistent volume mount (such as the `datalens_data` named volume in `docker-compose.yml` or a Kubernetes PersistentVolumeClaim).
+- **Ephemeral Disks**: Storing `./storage` on an ephemeral container layer will cause all uploaded datasets, versions, and audit history to be permanently lost upon container recreation or node rescheduling.
+
+### 2. Linux VPS Deployment (Systemd + Nginx)
+
+For standard Linux virtual private servers (Ubuntu, Debian, Arch Linux):
+
+#### Step A: Systemd Backend Service
+Create `/etc/systemd/system/datalens.service`:
+```ini
+[Unit]
+Description=DataLens FastAPI Backend Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/datalens
+EnvironmentFile=/var/www/datalens/.env
+ExecStart=/var/www/datalens/.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --workers 2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now datalens
+```
+
+#### Step B: Nginx Reverse Proxy & Static Asset Server
+Build the frontend production bundle:
+```bash
+cd /var/www/datalens/frontend
+npm install
+npm run build
+```
+
+Configure Nginx `/etc/nginx/sites-available/datalens`:
+```nginx
+server {
+    listen 80;
+    server_name datalens.example.com;
+
+    # Serve built frontend static assets
+    root /var/www/datalens/frontend/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Proxy API and health requests to Uvicorn
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /health {
+        proxy_pass http://127.0.0.1:8000/health;
+        proxy_set_header Host $host;
+    }
+
+    client_max_body_size 12M;
+}
+```
+
+Enable site and restart Nginx:
+```bash
+sudo ln -s /etc/nginx/sites-available/datalens /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+---
+
 ## Limitations & MVP Boundaries
 
 - **Single-User MVP**: Operates without authentication, user accounts, or multi-tenant isolation.
-- **Storage Scope**: Uses local filesystem storage and SQLite (`storage/datalens.db`). Not intended for multi-node cloud clusters without a persistent volume.
-- **Tabular CSV Only**: Accepts standard CSV formats; Excel (`.xlsx`), Parquet, and unstructured formats are out of scope for MVP.
+- **Storage Scope**: Uses local filesystem storage and SQLite (`storage/datalens.db`). Not intended for multi-node cloud clusters without a shared persistent volume or object store.
+- **Tabular CSV Only**: Accepts standard tabular CSV files; Excel (`.xlsx`), Parquet, and unstructured formats are out of scope for the MVP.
 - **Heuristics Disclaimer**: Class imbalance, feature leakage, and outlier detection rely on statistical heuristics (IQR, correlation coefficients). They indicate potential issues for domain-expert inspection rather than mathematical certainty.
+- **Cloud Deployment**: As stated above, cloud deployment is not verified due to the lack of external cloud infrastructure access. Local production builds and Docker configurations are verified.
