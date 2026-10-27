@@ -15,7 +15,7 @@
 
 - **Last updated:** 2026-10-27 15:10 IST
 - **Branch:** `main`
-- **HEAD commit:** `82009e9` (feat(audit): redesign audit page into overview and actionable findings with defect prioritization)
+- **HEAD commit:** `5b83432` (feat(cleaning): implement guided 6-step cleaning wizard with multi-step persistence and sequential execution)
 - **Git status:** Clean build, 88 automated pytest tests passing in 2.65s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
