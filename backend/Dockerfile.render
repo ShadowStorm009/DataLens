@@ -1,0 +1,49 @@
+# ==============================================================================
+# DataLens Dedicated Backend-Only Dockerfile for Render Deployment
+# ==============================================================================
+# Build context: Repository Root (.)
+# Dockerfile path: backend/Dockerfile.render
+#
+# This image contains ONLY the Python runtime, FastAPI application, and
+# backend dependencies. It does NOT include Node.js, npm, or frontend assets,
+# as the React/Vite Single Page Application is deployed independently to Vercel.
+# ==============================================================================
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Configure Python execution and application environment defaults
+ENV PYTHONUNBUFFERED=1 \
+    DATALENS_ENV=production \
+    DATALENS_HOST=0.0.0.0 \
+    DATABASE_URL=sqlite:////app/storage/datalens.db \
+    STORAGE_DIR=/app/storage \
+    MAX_UPLOAD_SIZE_BYTES=10485760
+
+# Install minimal system dependencies required for health checks and network diagnostics
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python backend dependencies
+# Build context MUST be the repository root (.) so backend/requirements.txt resolves correctly
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy backend source code into /app/backend
+# Preserves module imports (backend.app.main:app)
+COPY backend/ ./backend/
+
+# Ensure internal storage directory exists for SQLite database and versioned CSV datasets
+RUN mkdir -p /app/storage
+
+# Expose Render default port (10000)
+EXPOSE 10000
+
+# Persistent storage mount point for SQLite and uploaded datasets
+# CRITICAL: On Render, attach a Persistent Disk mounted at /app/storage
+VOLUME ["/app/storage"]
+
+# Bind to 0.0.0.0 and listen on Render-assigned PORT with fallback to 10000
+CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}"]

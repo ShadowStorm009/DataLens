@@ -31,7 +31,10 @@ This guide provides step-by-step instructions for deploying DataLens in a decoup
 
 ## Part 1: Deploy Backend on Render (Docker Web Service)
 
-Render builds and runs the container using the root-level `Dockerfile`.
+Render builds and runs the container using the dedicated backend-only Dockerfile at `backend/Dockerfile.render`.
+
+> [!TIP]
+> **Automated Blueprint Option**: The repository includes [`render.yaml`](../render.yaml). You can deploy via **New +** $\rightarrow$ **Blueprint** on Render to automatically configure the service, disk, and environment variables.
 
 ### Step 1: Create a New Web Service on Render
 1. Log in to your [Render Dashboard](https://dashboard.render.com/).
@@ -42,11 +45,22 @@ Render builds and runs the container using the root-level `Dockerfile`.
 - **Name**: `datalens-backend` (or your preferred service name).
 - **Region**: Choose the region closest to your users.
 - **Branch**: `main`.
-- **Root Directory**: Leave blank (the `Dockerfile` is located at repository root).
+- **Root Directory**: Leave blank (Render defaults to the repository root `.`).
 - **Runtime / Language**: Select **Docker**.
-- **Instance Type**: `Free` or `Starter` (512 MB+ RAM recommended for Pandas DataFrame operations).
+- **Instance Type**: `Starter` (512 MB+ RAM recommended for Pandas DataFrame operations and persistent disk support).
 
-### Step 3: Configure Environment Variables
+### Step 3: Configure Docker Build Context & Dockerfile Path (CRITICAL)
+In the Render Web Service creation screen (or under **Settings** $\rightarrow$ **Build & Deploy**):
+- Click **Advanced**.
+- **Dockerfile Path**: Set to `backend/Dockerfile.render` (relative to the repository root).
+- **Docker Context**: Set to `.` (or leave blank, which defaults to the repository root).
+
+> [!IMPORTANT]
+> **Build Context Requirement**:  
+> The Docker build context **must** be the repository root (`.`), not the `backend` subdirectory. This ensures `COPY backend/requirements.txt ./` and `COPY backend/ ./backend/` properly copy files and preserve the working FastAPI import path `backend.app.main:app`.  
+> `backend/Dockerfile.render` contains only the Python 3.11 runtime, FastAPI dependencies, and application code. It does **not** install Node.js, run npm, or copy frontend static files. (The root `Dockerfile` remains available for full-stack all-in-one local builds with Docker Compose).
+
+### Step 4: Configure Environment Variables
 In the **Environment** tab, add the following variables:
 
 | Key | Value / Example | Required | Purpose |
@@ -59,14 +73,14 @@ In the **Environment** tab, add the following variables:
 | `CORS_ORIGINS` | `https://<your-vercel-domain>.vercel.app` | **Yes** | Allows cross-origin requests from your Vercel frontend |
 
 > [!NOTE]
-> **Port Configuration on Render**: Render automatically injects the `PORT` environment variable (typically `10000`). The DataLens `Dockerfile` startup command automatically evaluates `${PORT:-10000}`. You do **not** need to manually add `PORT` to your Render environment variables.
+> **Port Configuration on Render**: Render automatically injects the `PORT` environment variable (typically `10000`). The DataLens `backend/Dockerfile.render` startup command automatically evaluates `${PORT:-10000}`. You do **not** need to manually add `PORT` to your Render environment variables.
 
-### Step 4: Configure Health Check Path
+### Step 5: Configure Health Check Path
 Render uses HTTP health checks to verify that your service is healthy before routing live traffic:
 - **Health Check Path**: `/health` (or `/api/v1/health`)
 - HTTP Methods supported: `GET` and `HEAD` (both return HTTP 200 `{"status": "ok", ...}`).
 
-### Step 5: Attach a Render Persistent Disk (CRITICAL)
+### Step 6: Attach a Render Persistent Disk (CRITICAL)
 
 > [!CAUTION]
 > **Data Persistence Requirement**:  
@@ -85,7 +99,7 @@ Render uses HTTP health checks to verify that your service is healthy before rou
 > **Single Instance Constraint**:  
 > SQLite operates via POSIX filesystem locks and is designed for a **single backend instance** (`Instance Count = 1`). Do not scale the Render Web Service to multiple instances (`instances > 1`), as multiple containers cannot safely share a single SQLite database file concurrently without locking conflicts.
 
-### Step 6: Deploy and Verify
+### Step 7: Deploy and Verify
 1. Click **Create Web Service** (or **Manual Deploy** $\rightarrow$ **Deploy latest commit**).
 2. Monitor the Render build logs. Docker will install dependencies and start Uvicorn.
 3. Once deployed, verify your service by navigating to:
@@ -171,7 +185,7 @@ In Docker Compose:
 
 ## Deployment Checklist & Verification Summary
 
-- [ ] **Render Backend created**: Runtime set to `Docker`, Root directory left blank.
+- [ ] **Render Backend created**: Runtime set to `Docker`, Root directory left blank, Dockerfile path set to `backend/Dockerfile.render` (or deployed via `render.yaml` Blueprint).
 - [ ] **Render Environment configured**: `DATALENS_ENV=production`, `DATABASE_URL=sqlite:////app/storage/datalens.db`, `STORAGE_DIR=/app/storage`.
 - [ ] **Persistent Disk attached**: Mount path set to `/app/storage`.
 - [ ] **Single Instance verified**: Instance count kept at `1` for SQLite safety.

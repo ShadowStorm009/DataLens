@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: datalens-backend
+    runtime: docker
+    plan: starter
+    dockerfilePath: backend/Dockerfile.render
+    dockerContext: .
+    healthCheckPath: /health
+    disk:
+      name: datalens-storage
+      mountPath: /app/storage
+      sizeGB: 1
+    envVars:
+      - key: DATALENS_ENV
+        value: production
+      - key: DATALENS_HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        value: sqlite:////app/storage/datalens.db
+      - key: STORAGE_DIR
+        value: /app/storage
+      - key: MAX_UPLOAD_SIZE_BYTES
+        value: 10485760
+      - key: CORS_ORIGINS
+        sync: false

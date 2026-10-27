@@ -121,3 +121,51 @@ def test_cors_middleware_with_client():
     # Test HEAD /health
     head_res = client.head("/health", headers={"Origin": "http://localhost:5173"})
     assert head_res.status_code == 200
+
+
+def test_render_backend_dockerfile():
+    """Verify backend/Dockerfile.render meets backend-only Render specifications."""
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    dockerfile_render = repo_root / "backend" / "Dockerfile.render"
+
+    assert dockerfile_render.is_file(), "backend/Dockerfile.render must exist"
+    content = dockerfile_render.read_text()
+
+    # Must be backend-only Python runtime (no node, npm, vite, or frontend in instructions)
+    assert "FROM python:3.11-slim" in content
+    instruction_lines = [l.strip() for l in content.splitlines() if l.strip() and not l.strip().startswith("#")]
+    instructions = "\n".join(instruction_lines).lower()
+    assert "node" not in instructions
+    assert "npm" not in instructions
+    assert "vite" not in instructions
+    assert "frontend" not in instructions
+
+    # Build context must be repository root
+    assert "COPY backend/requirements.txt" in content
+    assert "COPY backend/ ./backend/" in content
+
+    # Entrypoint, port fallback, and host
+    assert "backend.app.main:app" in content
+    assert "--host 0.0.0.0" in content
+    assert "${PORT:-10000}" in content
+
+    # Storage volume setup
+    assert "mkdir -p /app/storage" in content
+    assert 'VOLUME ["/app/storage"]' in content
+    assert "EXPOSE 10000" in content
+
+
+def test_render_yaml_blueprint():
+    """Verify render.yaml specifies correct Dockerfile path, context, and storage mount."""
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    render_yaml = repo_root / "render.yaml"
+
+    assert render_yaml.is_file(), "render.yaml Blueprint must exist"
+    content = render_yaml.read_text()
+
+    assert "backend/Dockerfile.render" in content
+    assert "dockerContext: ." in content
+    assert "healthCheckPath: /health" in content
+    assert "/app/storage" in content
+    assert "sqlite:////app/storage/datalens.db" in content
+

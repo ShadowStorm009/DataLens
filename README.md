@@ -404,20 +404,23 @@ DataLens maintains a comprehensive test suite of **98 unit, integration, and end
 ### Cloud Deployment: Render (Backend) + Vercel (Frontend)
 
 #### 1. Backend on Render (Docker Web Service)
-1. In the [Render Dashboard](https://dashboard.render.com/), create a **New Web Service** from your GitHub repository.
-2. Select runtime **Docker** and keep the root directory blank (the `Dockerfile` is at the repo root).
-3. Set Environment Variables:
+1. In the [Render Dashboard](https://dashboard.render.com/), create a **New Web Service** from your GitHub repository (or deploy via **New +** $\rightarrow$ **Blueprint** using [`render.yaml`](render.yaml)).
+2. Select runtime **Docker** and keep **Root Directory** blank (defaults to repository root `.`).
+3. Under **Advanced Settings**:
+   - **Dockerfile Path**: `backend/Dockerfile.render` (dedicated backend-only image; no Node.js/npm/Vite build overhead).
+   - **Docker Context**: `.` (or leave blank to use the repository root, ensuring backend imports resolve).
+4. Set Environment Variables:
    - `DATALENS_ENV`: `production`
    - `DATALENS_HOST`: `0.0.0.0`
    - `DATABASE_URL`: `sqlite:////app/storage/datalens.db`
    - `STORAGE_DIR`: `/app/storage`
    - `CORS_ORIGINS`: `https://<your-vercel-domain>.vercel.app` (comma-separated, no trailing slashes)
-4. Set Health Check Path: `/health` (supports `GET` and `HEAD`).
-5. **Attach Persistent Disk (Critical)**:
+5. Set Health Check Path: `/health` (supports `GET` and `HEAD`).
+6. **Attach Persistent Disk (Critical)**:
    - Go to the **Disks** tab and add a disk mounted at `/app/storage` (1 GB+).
    - *Why required*: Docker containers on Render have ephemeral filesystems; without a persistent disk, uploaded CSVs and SQLite database tables are wiped on redeployment or restart.
    - *Instance constraint*: Keep instance count at `1`. SQLite is single-node and cannot safely share disk writes across multiple concurrent instances.
-6. Deploy and verify health at `https://<your-render-app>.onrender.com/health`.
+7. Deploy and verify health at `https://<your-render-app>.onrender.com/health`.
 
 #### 2. Frontend on Vercel
 1. In the [Vercel Dashboard](https://vercel.com/dashboard), import the repository.
