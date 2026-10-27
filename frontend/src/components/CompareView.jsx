@@ -17,6 +17,7 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
   const [loading, setLoading] = useState(true);
   const [comparing, setComparing] = useState(false);
   const [reAuditing, setReAuditing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('resolved'); // 'resolved', 'unresolved', 'new'
 
@@ -196,17 +197,20 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
           <button
             className="btn btn-outline"
             onClick={async () => {
+              setExporting(true);
               try {
                 await downloadFileFromUrl(getExportCsvUrl(datasetId, v2Id, false));
               } catch (err) {
                 setError(err.message || 'Failed to download comparison CSV');
+              } finally {
+                setExporting(false);
               }
             }}
-            disabled={!v2Id || comparing}
+            disabled={!v2Id || comparing || exporting}
             style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
-            title="Download CSV for Version 2"
+            title={`Download CSV for Version ${comparison?.v2?.version_number || 2}`}
           >
-            ⬇ Export V2 CSV
+            {exporting ? 'Exporting...' : `⬇ Export V${comparison?.v2?.version_number || 2} CSV`}
           </button>
         </div>
       </div>

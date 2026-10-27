@@ -80,7 +80,7 @@ flowchart TD
 - **Backend**: Python 3.10+ (tested on Python 3.14 / Arch Linux), FastAPI, Uvicorn, Pydantic v2.
 - **Data Engine**: Pandas and NumPy.
 - **Persistence**: SQLite with SQLAlchemy ORM (`PRAGMA foreign_keys = ON;`) for metadata, version tracking, audit records, and transformation logs.
-- **Testing**: pytest and FastAPI TestClient (88 automated tests passing).
+- **Testing**: pytest and FastAPI TestClient (91 automated tests passing).
 
 ---
 

@@ -1255,7 +1255,7 @@ export default function CleaningWizard({
         message: 'Running post-cleaning quality audit on new version...',
       });
 
-      const auditRes = await runAudit(dataset.id, currentVersionId);
+      const auditRes = await runAudit(dataset.id, { version_id: currentVersionId });
       setNewAuditResult(auditRes);
       setIsAuditing(false);
     } catch (err) {

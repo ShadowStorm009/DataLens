@@ -196,7 +196,8 @@ export default function ExportCenter({
 
   const getReportFilenamePreview = () => {
     const name = getCleanDatasetName();
-    const verNum = selectedVersion?.version_number || 1;
+    const auditVer = versions.find((v) => v.version_id === selectedAudit?.version_id);
+    const verNum = auditVer?.version_number || selectedVersion?.version_number || 1;
     const ext = reportFormat === 'json' ? 'json' : 'html';
     return `${name}_v${verNum}_audit_report.${ext}`;
   };

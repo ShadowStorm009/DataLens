@@ -22,6 +22,7 @@ export default function AllDatasetsPage({
   const [datasetToDelete, setDatasetToDelete] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [exportError, setExportError] = useState(null);
+  const [exportingId, setExportingId] = useState(null);
 
   // Fetch real audit scores for visible datasets
   useEffect(() => {
@@ -465,17 +466,21 @@ export default function AllDatasetsPage({
                           <button
                             className="btn btn-outline"
                             style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                            disabled={exportingId === ds.id}
                             onClick={async () => {
+                              setExportingId(ds.id);
                               setExportError(null);
                               try {
                                 await downloadFileFromUrl(getExportCsvUrl(ds.id, ds.current_version_id, false));
                               } catch (err) {
                                 setExportError(err.message || 'Failed to download dataset CSV');
+                              } finally {
+                                setExportingId(null);
                               }
                             }}
                             title="Export current CSV version"
                           >
-                            Export
+                            {exportingId === ds.id ? 'Exporting...' : 'Export'}
                           </button>
                           <button
                             className="btn btn-outline"

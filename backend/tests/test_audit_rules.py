@@ -436,6 +436,27 @@ def test_audit_summary_metrics_agree_with_findings_for_test_dataset(client: Test
     assert dup_findings[0]["structured_evidence"]["duplicate_count"] == 1
     assert dup_findings[0]["structured_evidence"]["duplicate_count"] == summary["duplicate_rows"]
 
+    # Verify constant column finding
+    const_findings = [f for f in findings if f["rule_id"] == "rule_constant_columns"]
+    assert len(const_findings) == 1
+    assert const_findings[0]["column_name"] == "batch"
+    assert const_findings[0]["structured_evidence"]["distinct_non_null_count"] == 1
+    assert const_findings[0]["structured_evidence"]["constant_value"] == "2026"
+
+    # Verify outlier finding on marks
+    outlier_findings = [f for f in findings if f["rule_id"] == "rule_numeric_outliers"]
+    assert len(outlier_findings) == 1
+    assert outlier_findings[0]["column_name"] == "marks"
+    assert outlier_findings[0]["structured_evidence"]["outlier_count"] == 1
+    assert 999.0 in outlier_findings[0]["structured_evidence"]["sample_outliers"]
+
+    # Verify type consistency finding on attendance_pct
+    type_findings = [f for f in findings if f["rule_id"] == "rule_type_consistency"]
+    assert len(type_findings) == 1
+    assert type_findings[0]["column_name"] == "attendance_pct"
+    assert type_findings[0]["structured_evidence"]["inconsistent_count"] == 1
+    assert "eighty" in type_findings[0]["structured_evidence"]["sample_inconsistent_values"]
+
     # 3. Verify Profile endpoint metrics agree
     profile_res = client.get(f"/api/v1/datasets/{dataset_id}/profile")
     assert profile_res.status_code == 200

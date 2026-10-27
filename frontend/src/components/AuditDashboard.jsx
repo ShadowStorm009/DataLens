@@ -77,7 +77,6 @@ export default function AuditDashboard({
         setVersions(vers);
 
         const targetVer = vId || selectedVersionId || dataset.current_version_id;
-        setSelectedVersionId(targetVer);
 
         // Fetch profile and audits in parallel for exact target version
         const [prof, auditListRes] = await Promise.all([
@@ -102,16 +101,17 @@ export default function AuditDashboard({
         setRunningAudit(false);
       }
     },
-    [dataset.id, dataset.current_version_id, selectedVersionId]
+    // Intentionally omit selectedVersionId from deps so callback identity is stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dataset.id, dataset.current_version_id]
   );
 
   useEffect(() => {
-    loadAuditData();
-  }, [loadAuditData]);
+    loadAuditData(selectedVersionId);
+  }, [loadAuditData, selectedVersionId]);
 
   const handleVersionChange = (newVId) => {
     setSelectedVersionId(newVId);
-    loadAuditData(newVId);
   };
 
   const handleRunNewAudit = async () => {

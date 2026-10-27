@@ -304,7 +304,7 @@ export async function downloadFileFromUrl(url, defaultFilename = 'datalens_downl
     let errMsg = `Download failed with HTTP ${response.status}`;
     try {
       const errJson = await response.json();
-      errMsg = errJson.error?.message || errJson.message || errMsg;
+      errMsg = errJson.message || errJson.detail || (typeof errJson.error === 'string' ? errJson.error : errJson.error?.message) || errMsg;
     } catch (e) {
       // Non-JSON response
     }
