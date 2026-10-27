@@ -331,7 +331,7 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
                 <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.25rem' }}>
                   Comparison Score (V{comparison.v2.version_number})
                 </div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#0284c7' }}>
+                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--primary)' }}>
                   {scoreComp?.v2_score !== null ? `${scoreComp.v2_score}` : 'N/A'}
                   <span style={{ fontSize: '1rem', color: '#94a3b8' }}>/100</span>
                 </div>
@@ -714,12 +714,12 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {findingsDiff.new.map((f) => (
-                      <div key={f.id} style={{ padding: '0.85rem', border: '1px solid #bfdbfe', background: '#eff6ff', borderRadius: '6px' }}>
+                      <div key={f.id} style={{ padding: '0.85rem', border: '1px solid var(--primary-border)', background: 'var(--primary-light)', borderRadius: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                           <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>New Issue</span>
                           <span className={`badge badge-${f.severity}`} style={{ fontSize: '0.75rem' }}>{f.severity}</span>
                           {f.column_name && <span className="badge badge-outline" style={{ fontSize: '0.75rem' }}>Col: {f.column_name}</span>}
-                          <strong style={{ fontSize: '0.9rem', color: '#1e40af' }}>{f.title}</strong>
+                          <strong style={{ fontSize: '0.9rem', color: 'var(--primary)' }}>{f.title}</strong>
                         </div>
                         <p style={{ margin: '0.25rem 0', fontSize: '0.85rem', color: '#374151' }}>{f.description}</p>
                       </div>
@@ -747,7 +747,7 @@ export default function CompareView({ datasetId, onBackToAudit, onBackToDatasets
                       padding: '0.75rem 1rem',
                       background: '#f8fafc',
                       borderRadius: '6px',
-                      borderLeft: '4px solid #0284c7',
+                      borderLeft: '4px solid var(--primary)',
                       fontSize: '0.85rem',
                       flexWrap: 'wrap',
                       gap: '0.5rem',

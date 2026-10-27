@@ -1,25 +1,53 @@
 :root {
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-light: #eff6ff;
-  --secondary: #475569;
-  --success: #16a34a;
+  /* Requested Color Theme: Ice Silver (#dde3e8), Deep Aubergine (#3a0f34), Marigold (#eaaa00) */
+  --ice-silver: #dde3e8;
+  --ice-silver-light: #f5f7f9;
+  --ice-silver-border: #ccd6de;
+
+  --deep-aubergine: #3a0f34;
+  --deep-aubergine-hover: #52184a;
+  --deep-aubergine-light: #f8f1f7;
+  --deep-aubergine-border: #e2cbde;
+
+  --marigold: #eaaa00;
+  --marigold-hover: #d49800;
+  --marigold-light: #fef8ec;
+  --marigold-border: #f9e2aa;
+
+  /* Semantic Theme Mappings */
+  --primary: var(--deep-aubergine);
+  --primary-hover: var(--deep-aubergine-hover);
+  --primary-light: var(--deep-aubergine-light);
+  --primary-border: var(--deep-aubergine-border);
+
+  --accent: var(--marigold);
+  --accent-hover: var(--marigold-hover);
+  --accent-light: var(--marigold-light);
+  --accent-border: var(--marigold-border);
+
+  --secondary: #4a3447;
+  --success: #15803d;
   --success-bg: #f0fdf4;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
+  --warning: #946300;
+  --warning-bg: var(--marigold-light);
+  --warning-border: var(--marigold-border);
   --danger: #dc2626;
   --danger-bg: #fef2f2;
-  --bg-main: #f8fafc;
+
+  --bg-main: #f5f7f9;
   --bg-card: #ffffff;
-  --border: #e2e8f0;
-  --border-focus: #3b82f6;
-  --text-main: #0f172a;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --border: var(--ice-silver);
+  --border-focus: var(--deep-aubergine);
+
+  --text-main: #201321;
+  --text-muted: #5e5361;
+  --text-light: #8e8392;
+
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+
+  --shadow-sm: 0 1px 3px 0 rgba(58, 15, 52, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(58, 15, 52, 0.09), 0 2px 5px -2px rgba(58, 15, 52, 0.05);
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -45,6 +73,7 @@ a {
 }
 
 a:hover {
+  color: var(--primary-hover);
   text-decoration: underline;
 }
 
@@ -63,29 +92,33 @@ button {
 
 .navbar {
   background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--border);
   padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 1px 4px 0 rgba(58, 15, 52, 0.04);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-weight: 700;
-  font-size: 1.25rem;
+  font-weight: 800;
+  font-size: 1.3rem;
   color: var(--primary);
+  letter-spacing: -0.02em;
 }
 
 .brand-badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
   border-radius: var(--radius-sm);
-  background: var(--primary-light);
+  background: var(--accent-light);
   color: var(--primary);
+  border: 1px solid var(--accent-border);
+  letter-spacing: 0;
 }
 
 .main-content {
@@ -107,7 +140,8 @@ button {
 
 .card-title {
   font-size: 1.15rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--primary);
   margin-bottom: 0.5rem;
   display: flex;
   align-items: center;
@@ -120,7 +154,7 @@ button {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .badge-success {
@@ -138,7 +172,47 @@ button {
 .badge-warning {
   background: var(--warning-bg);
   color: var(--warning);
-  border: 1px solid #fde68a;
+  border: 1px solid var(--warning-border);
+}
+
+.badge-info {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+}
+
+.badge-marigold {
+  background: var(--accent);
+  color: var(--primary);
+  border: 1px solid var(--accent-hover);
+  font-weight: 700;
+}
+
+.badge-high {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  font-weight: 700;
+}
+
+.badge-medium {
+  background: var(--accent-light);
+  color: var(--warning);
+  border: 1px solid var(--accent-border);
+  font-weight: 700;
+}
+
+.badge-low {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+  font-weight: 600;
+}
+
+.badge-outline {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
 }
 
 .btn {
@@ -147,7 +221,7 @@ button {
   justify-content: center;
   padding: 0.6rem 1.2rem;
   border-radius: var(--radius-sm);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.9rem;
   transition: all 0.15s ease-in-out;
 }
@@ -155,10 +229,24 @@ button {
 .btn-primary {
   background: var(--primary);
   color: #ffffff;
+  border: 1px solid var(--primary);
 }
 
 .btn-primary:hover {
   background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-accent {
+  background: var(--accent);
+  color: var(--primary);
+  border: 1px solid var(--accent);
+  font-weight: 700;
+}
+
+.btn-accent:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .btn-outline {
@@ -168,7 +256,8 @@ button {
 }
 
 .btn-outline:hover {
-  background: var(--bg-main);
+  background: var(--ice-silver-light);
+  border-color: var(--ice-silver-border);
 }
 
 .btn:disabled {
@@ -180,33 +269,6 @@ button {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
-}
-
-.badge-info {
-  background: var(--primary-light);
-  color: var(--primary);
-  border: 1px solid #bfdbfe;
-}
-
-.badge-high {
-  background: var(--danger-bg);
-  color: var(--danger);
-  border: 1px solid #fecaca;
-  font-weight: 700;
-}
-
-.badge-medium {
-  background: var(--warning-bg);
-  color: var(--warning);
-  border: 1px solid #fde68a;
-  font-weight: 600;
-}
-
-.badge-low {
-  background: var(--primary-light);
-  color: var(--primary);
-  border: 1px solid #bfdbfe;
-  font-weight: 500;
 }
 
 .score-badge {
@@ -229,9 +291,9 @@ button {
 }
 
 .score-good {
-  background: var(--warning-bg);
+  background: var(--accent-light);
   color: var(--warning);
-  border: 4px solid #fde047;
+  border: 4px solid var(--accent);
 }
 
 .score-poor {
@@ -252,7 +314,7 @@ button {
 
 .finding-card:hover {
   box-shadow: var(--shadow-md);
-  border-color: #cbd5e1;
+  border-color: var(--ice-silver-border);
 }
 
 .finding-card.severity-high {
@@ -260,7 +322,7 @@ button {
 }
 
 .finding-card.severity-medium {
-  border-left: 5px solid var(--warning);
+  border-left: 5px solid var(--accent);
 }
 
 .finding-card.severity-low {
@@ -273,7 +335,7 @@ button {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(58, 15, 52, 0.45);
   display: flex;
   justify-content: flex-end;
   z-index: 1000;
@@ -286,7 +348,7 @@ button {
   background: var(--bg-card);
   height: 100%;
   overflow-y: auto;
-  box-shadow: -4px 0 25px rgba(0, 0, 0, 0.15);
+  box-shadow: -4px 0 25px rgba(58, 15, 52, 0.2);
   display: flex;
   flex-direction: column;
 }
@@ -302,6 +364,7 @@ button {
   border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 0.85rem;
+  background: var(--bg-card);
 }
 
 /* Navigation Tabs */
@@ -312,20 +375,21 @@ button {
   padding: 0.45rem 0.85rem;
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted);
   transition: all 0.15s ease-in-out;
 }
 
 .nav-tab-btn:hover {
-  color: var(--text-main);
-  background: var(--bg-main);
+  color: var(--primary);
+  background: var(--ice-silver-light);
 }
 
 .nav-tab-active {
   color: var(--primary);
   background: var(--primary-light);
-  font-weight: 600;
+  border: 1px solid var(--primary-border);
+  font-weight: 700;
 }
 
 .nav-count-badge {
@@ -336,15 +400,15 @@ button {
   border-radius: 9999px;
   font-size: 0.72rem;
   font-weight: 700;
-  background: #dbeafe;
+  background: var(--ice-silver);
   color: var(--primary);
 }
 
 /* Landing Page Hero */
 .landing-hero {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #ffffff 0%, var(--ice-silver-light) 100%);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 14px -2px rgba(58, 15, 52, 0.05);
 }
 
 /* Responsive adjustments */

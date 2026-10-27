@@ -288,7 +288,7 @@ export default function ProfileView({
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>MINIMUM</div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>{numStats.min}</div>
             </div>
-            <div style={{ background: 'var(--primary-light)', padding: '0.5rem', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
+            <div style={{ background: 'var(--primary-light)', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--primary-border)' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600 }}>25% (Q1)</div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>{numStats.q25}</div>
             </div>
@@ -296,7 +296,7 @@ export default function ProfileView({
               <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>MEDIAN (Q2)</div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>{numStats.median}</div>
             </div>
-            <div style={{ background: 'var(--primary-light)', padding: '0.5rem', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
+            <div style={{ background: 'var(--primary-light)', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--primary-border)' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600 }}>75% (Q3)</div>
               <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>{numStats.q75}</div>
             </div>
@@ -383,7 +383,7 @@ export default function ProfileView({
                   <div
                     style={{
                       width: `${pct}%`,
-                      background: idx === 0 ? 'var(--primary)' : '#60a5fa',
+                      background: idx === 0 ? 'var(--primary)' : 'var(--accent)',
                       height: '100%',
                       borderRadius: '4px',
                       transition: 'width 0.3s ease',
