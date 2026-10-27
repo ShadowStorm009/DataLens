@@ -15,7 +15,7 @@
 
 - **Last updated:** 2026-10-27 15:00 IST
 - **Branch:** `main`
-- **HEAD commit:** `a4f588d` (docs: sync canonical handoff commit hash)
+- **HEAD commit:** `0560dd6` (feat(ui): implement professional landing page and separate all datasets page)
 - **Git status:** Clean build, 88 automated pytest tests passing in 2.63s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
