@@ -378,3 +378,83 @@ def test_finding_response_evidence_alias():
     assert f.evidence == {"null_count": 5, "total_rows": 10}
     assert f.model_dump()["evidence"] == {"null_count": 5, "total_rows": 10}
 
+def test_audit_summary_metrics_agree_with_findings_for_test_dataset(client: TestClient):
+    """
+    Regression Test:
+    Verify that for the 24-row test dataset:
+    - Missing cells total exactly 3 (1 in attendance_pct, 1 in marks, 1 in scholarship).
+    - Exact duplicate rows total exactly 1.
+    - Audit summary metrics and profile metrics strictly agree with underlying findings.
+    - Re-running the audit produces consistent, correctly associated summary metrics.
+    """
+    from pathlib import Path
+    test_csv_path = Path(__file__).resolve().parent.parent.parent / "sample_datasets" / "datalens_test_dataset.csv"
+    assert test_csv_path.exists(), f"Test CSV not found at {test_csv_path}"
+    csv_bytes = test_csv_path.read_bytes()
+
+    # 1. Upload test dataset
+    upload_res = client.post(
+        "/api/v1/datasets",
+        files={"file": ("datalens_test_dataset.csv", csv_bytes, "text/csv")},
+        data={"name": "Audit Summary Regression Dataset"},
+    )
+    assert upload_res.status_code == 201
+    dataset = upload_res.json()
+    dataset_id = dataset["id"]
+    version_id = dataset["current_version_id"]
+    assert dataset["row_count"] == 24
+    assert dataset["column_count"] == 7
+
+    # 2. Run Audit
+    audit_res = client.post(f"/api/v1/datasets/{dataset_id}/audits")
+    assert audit_res.status_code == 201
+    audit = audit_res.json()
+    summary = audit["summary"]
+    findings = audit["findings"]
+
+    # Verify summary metrics
+    assert summary["missing_cells"] == 3
+    assert summary["total_missing_cells"] == 3
+    assert summary["duplicate_rows"] == 1
+    assert summary["duplicate_rows_count"] == 1
+    assert round(summary["missing_percentage"], 2) == round((3 / (24 * 7)) * 100.0, 2)
+    assert round(summary["duplicate_percentage"], 2) == round((1 / 24) * 100.0, 2)
+
+    # Verify individual missing value findings
+    missing_findings = [f for f in findings if f["rule_id"] == "rule_missing_values"]
+    assert len(missing_findings) == 3
+    missing_cols = {f["column_name"] for f in missing_findings}
+    assert missing_cols == {"attendance_pct", "marks", "scholarship"}
+    for f in missing_findings:
+        assert f["structured_evidence"]["null_count"] == 1
+    sum_missing_from_findings = sum(f["structured_evidence"]["null_count"] for f in missing_findings)
+    assert sum_missing_from_findings == summary["missing_cells"]
+
+    # Verify duplicate row finding
+    dup_findings = [f for f in findings if f["rule_id"] == "rule_exact_duplicates"]
+    assert len(dup_findings) == 1
+    assert dup_findings[0]["structured_evidence"]["duplicate_count"] == 1
+    assert dup_findings[0]["structured_evidence"]["duplicate_count"] == summary["duplicate_rows"]
+
+    # 3. Verify Profile endpoint metrics agree
+    profile_res = client.get(f"/api/v1/datasets/{dataset_id}/profile")
+    assert profile_res.status_code == 200
+    profile = profile_res.json()
+    assert profile["missing_cells"] == 3
+    assert profile["duplicate_rows"] == 1
+    assert profile["dataset_metrics"]["missing_cells"] == 3
+    assert profile["dataset_metrics"]["duplicate_rows"] == 1
+
+    # 4. Rerun audit and confirm exact consistency
+    rerun_res = client.post(
+        f"/api/v1/datasets/{dataset_id}/audits",
+        json={"version_id": version_id},
+    )
+    assert rerun_res.status_code == 201
+    rerun_audit = rerun_res.json()
+    assert rerun_audit["summary"]["missing_cells"] == 3
+    assert rerun_audit["summary"]["duplicate_rows"] == 1
+    assert rerun_audit["version_id"] == version_id
+    assert rerun_audit["score"] == audit["score"]
+
+

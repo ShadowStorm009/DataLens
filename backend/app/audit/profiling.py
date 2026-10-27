@@ -82,6 +82,16 @@ class ProfilingEngine:
             type_counts[col_profile["inferred_type"]] = type_counts.get(col_profile["inferred_type"], 0) + 1
             column_profiles.append(col_profile)
 
+        dataset_metrics = {
+            "row_count": row_count,
+            "column_count": col_count,
+            "total_cells": total_cells,
+            "missing_cells": total_missing_cells,
+            "missing_percentage": round(missing_percentage, 2),
+            "duplicate_rows": duplicate_rows_count,
+            "duplicate_percentage": round(duplicate_percentage, 2),
+        }
+
         result = {
             "row_count": row_count,
             "column_count": col_count,
@@ -92,6 +102,7 @@ class ProfilingEngine:
             "duplicate_percentage": round(duplicate_percentage, 2),
             "type_counts": type_counts,
             "columns": column_profiles,
+            "dataset_metrics": dataset_metrics,
         }
 
         return to_json_safe(result)

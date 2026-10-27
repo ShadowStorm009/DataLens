@@ -54,3 +54,4 @@ class DatasetProfileResponse(BaseModel):
     duplicate_percentage: float
     type_counts: Dict[str, int]
     columns: List[ColumnProfile]
+    dataset_metrics: Optional[Dict[str, Any]] = None

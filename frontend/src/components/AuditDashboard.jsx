@@ -107,6 +107,12 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
         versionId: selectedVersionId,
       });
       setAudit(newAudit);
+      try {
+        const prof = await getDatasetProfile(dataset.id, selectedVersionId);
+        setProfile(prof);
+      } catch {
+        // Non-critical profile refresh error
+      }
     } catch (err) {
       setError(err.message || 'Failed to execute audit run');
     } finally {
@@ -120,11 +126,57 @@ export default function AuditDashboard({ dataset, onBack, onSwitchToProfile, onS
   const findingCounts = summary?.finding_counts || { high: 0, medium: 0, low: 0 };
   const score = audit?.score !== null && audit?.score !== undefined ? audit.score : null;
 
-  const datasetMetrics = profile?.dataset_metrics || {};
-  const missingCells = datasetMetrics.missing_cells ?? 0;
-  const missingPct = datasetMetrics.missing_percentage ?? 0.0;
-  const duplicateRows = datasetMetrics.duplicate_rows ?? 0;
-  const duplicatePct = datasetMetrics.duplicate_percentage ?? 0.0;
+  // Compute missing cells from findings evidence as a safety fallback
+  const missingFromFindings = findings
+    .filter((f) => f.rule_id === 'rule_missing_values')
+    .reduce((acc, f) => acc + (f.structured_evidence?.null_count ?? f.evidence?.null_count ?? 0), 0);
+
+  // Compute duplicate rows from findings evidence as a safety fallback
+  const dupFinding = findings.find((f) => f.rule_id === 'rule_exact_duplicates');
+  const dupFromFindings = dupFinding
+    ? (dupFinding.structured_evidence?.duplicate_count ?? dupFinding.evidence?.duplicate_count ?? 0)
+    : 0;
+
+  // Resolve missing cells count (priority: active audit summary -> profile top-level -> profile dataset_metrics -> findings evidence)
+  const missingCells =
+    summary.missing_cells ??
+    summary.total_missing_cells ??
+    profile?.missing_cells ??
+    profile?.dataset_metrics?.missing_cells ??
+    missingFromFindings;
+
+  const totalCells =
+    summary.total_cells ??
+    profile?.total_cells ??
+    profile?.dataset_metrics?.total_cells ??
+    (profile?.row_count && profile?.column_count ? profile.row_count * profile.column_count : null);
+
+  const missingPct =
+    summary.missing_percentage ??
+    profile?.missing_percentage ??
+    profile?.dataset_metrics?.missing_percentage ??
+    (totalCells && totalCells > 0 ? (missingCells / totalCells) * 100.0 : 0.0);
+
+  // Resolve duplicate rows count (priority: active audit summary -> profile top-level -> profile dataset_metrics -> findings evidence)
+  const duplicateRows =
+    summary.duplicate_rows ??
+    summary.duplicate_rows_count ??
+    profile?.duplicate_rows ??
+    profile?.dataset_metrics?.duplicate_rows ??
+    dupFromFindings;
+
+  const totalRows =
+    summary.row_count ??
+    profile?.row_count ??
+    profile?.dataset_metrics?.row_count ??
+    dataset.row_count ??
+    null;
+
+  const duplicatePct =
+    summary.duplicate_percentage ??
+    profile?.duplicate_percentage ??
+    profile?.dataset_metrics?.duplicate_percentage ??
+    (totalRows && totalRows > 0 ? (duplicateRows / totalRows) * 100.0 : 0.0);
 
   const activeVerId = selectedVersionId || dataset.current_version_id;
   const activeVerObj = versions.find((v) => v.id === activeVerId);

@@ -20,6 +20,17 @@ A 20-row sample dataset representing employee records with deliberate quality an
 
 ---
 
+## `datalens_test_dataset.csv`
+
+A 24-row, 7-column academic dataset used for automated regression tests and audit summary metric verification:
+- **Total Rows & Columns**: 24 rows, 7 columns (`student_id`, `name`, `department`, `attendance_pct`, `marks`, `scholarship`, `batch`).
+- **Missing Cells (3 total)**: 1 missing in `attendance_pct` (row 5 / `S005`), 1 in `marks` (row 3 / `S003`), 1 in `scholarship` (row 6 / `S006`).
+- **Exact Duplicate Rows (1 total)**: Row 24 (`S001,Aarav...`) is an exact duplicate of Row 0.
+- **Outlier**: Row 22 (`S022,Outlier...`) has marks `999.0`.
+- **Type Inconsistency**: Row 23 (`S023,BadType...`) has attendance `"eighty"`.
+
+---
+
 ## Recommended Step-by-Step Walkthrough
 
 1. **Upload**: Drag and drop `demo_dirty_dataset.csv` into the DataLens upload panel.

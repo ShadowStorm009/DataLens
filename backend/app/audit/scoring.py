@@ -26,6 +26,15 @@ def calculate_quality_score(
             "final_score": 0.0,
             "scoring_method_version": SCORING_METHOD_VERSION,
             "disclaimer": SCORING_DISCLAIMER,
+            "row_count": total_rows,
+            "column_count": total_cols,
+            "total_cells": 0,
+            "missing_cells": 0,
+            "missing_percentage": 0.0,
+            "duplicate_rows": 0,
+            "duplicate_percentage": 0.0,
+            "total_missing_cells": 0,
+            "duplicate_rows_count": 0,
             "penalties": {"empty_dataset": 100.0},
         }
 
@@ -34,12 +43,14 @@ def calculate_quality_score(
     total_missing_cells = 0
     for col in df.columns:
         total_missing_cells += int(get_missing_mask(df[col]).sum())
-    missing_ratio = total_missing_cells / total_cells
+    missing_ratio = total_missing_cells / total_cells if total_cells > 0 else 0.0
+    missing_percentage = round(missing_ratio * 100.0, 2)
     missing_penalty = min(30.0, round(missing_ratio * 100.0 * 0.75, 1))
 
     # 2. Duplicate rows penalty (max 25.0 pts)
     duplicate_rows = int(df.duplicated(keep="first").sum()) if total_rows > 1 else 0
-    dup_ratio = duplicate_rows / total_rows
+    dup_ratio = duplicate_rows / total_rows if total_rows > 0 else 0.0
+    duplicate_percentage = round(dup_ratio * 100.0, 2)
     dup_penalty = min(25.0, round(dup_ratio * 100.0 * 0.5, 1))
 
     # 3. Constant columns penalty (max 20.0 pts)
@@ -81,6 +92,13 @@ def calculate_quality_score(
         "total_penalty": total_penalty,
         "scoring_method_version": SCORING_METHOD_VERSION,
         "disclaimer": SCORING_DISCLAIMER,
+        "row_count": total_rows,
+        "column_count": total_cols,
+        "total_cells": total_cells,
+        "missing_cells": total_missing_cells,
+        "missing_percentage": missing_percentage,
+        "duplicate_rows": duplicate_rows,
+        "duplicate_percentage": duplicate_percentage,
         "total_missing_cells": total_missing_cells,
         "duplicate_rows_count": duplicate_rows,
         "penalties": {
