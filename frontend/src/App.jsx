@@ -6,6 +6,7 @@ import PreviewModal from './components/PreviewModal';
 import ProfileView from './components/ProfileView';
 import AuditDashboard from './components/AuditDashboard';
 import CompareView from './components/CompareView';
+import ExportCenter from './components/ExportCenter';
 
 export default function App() {
   const [health, setHealth] = useState(null);
@@ -92,6 +93,13 @@ export default function App() {
     setActiveView('all-datasets');
   };
 
+  const handleNavigateExport = (dataset = null) => {
+    if (dataset) {
+      setSelectedDataset(dataset);
+    }
+    setActiveView('export');
+  };
+
   return (
     <div className="app-container">
       {/* Navigation Header */}
@@ -139,12 +147,18 @@ export default function App() {
                 </span>
               )}
             </button>
+            <button
+              className={`nav-tab-btn ${activeView === 'export' ? 'nav-tab-active' : ''}`}
+              onClick={() => handleNavigateExport(selectedDataset)}
+            >
+              Export Center
+            </button>
           </nav>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           {/* Contextual Back Button when inside details */}
-          {(activeView === 'audit' || activeView === 'profile' || activeView === 'compare') && (
+          {(activeView === 'audit' || activeView === 'profile' || activeView === 'compare' || activeView === 'export') && (
             <button
               className="btn btn-outline"
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.825rem' }}
@@ -232,6 +246,7 @@ export default function App() {
             }}
             onSwitchToPreview={() => setPreviewingDataset(selectedDataset)}
             onSwitchToCompare={() => setActiveView('compare')}
+            onSwitchToExport={() => handleNavigateExport(selectedDataset)}
           />
         )}
 
@@ -252,6 +267,17 @@ export default function App() {
             datasetId={selectedDataset.id}
             onBackToAudit={() => setActiveView('audit')}
             onBackToDatasets={handleNavigateAllDatasets}
+          />
+        )}
+
+        {/* View 6: Dedicated Export Center */}
+        {activeView === 'export' && (
+          <ExportCenter
+            datasets={datasets}
+            initialDatasetId={selectedDataset?.id || null}
+            initialVersionId={selectedDataset?.current_version_id || null}
+            onNavigateToAudit={handleViewAudit}
+            onNavigateToDatasets={handleNavigateAllDatasets}
           />
         )}
 

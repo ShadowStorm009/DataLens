@@ -8,7 +8,7 @@ from backend.app.db.session import get_db
 from backend.app.services.export import export_service
 from backend.app.services.dataset_service import dataset_service
 from backend.app.models.audit import AuditRun
-from backend.app.core.errors import ResourceNotFoundError
+from backend.app.core.errors import ResourceNotFoundError, ValidationError
 
 router = APIRouter(
     prefix="/datasets/{dataset_id}",
@@ -80,7 +80,8 @@ def export_audit_report(
     Download a comprehensive audit report for a specific audit run.
     Supports standalone self-contained HTML (for humans) and structured JSON (for machines).
     """
-    if format.lower() == "json":
+    fmt = format.lower().strip()
+    if fmt == "json":
         report_data = export_service.generate_json_report(db, dataset_id, audit_id)
         dataset_name = export_service._sanitize_filename(report_data["dataset"]["name"])
         v_num = report_data["version"]["version_number"]
@@ -91,7 +92,7 @@ def export_audit_report(
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
         )
-    else:
+    elif fmt == "html":
         html_text, filename = export_service.generate_html_report(db, dataset_id, audit_id)
         return Response(
             content=html_text,
@@ -99,6 +100,10 @@ def export_audit_report(
             headers={
                 "Content-Disposition": f'attachment; filename="{filename}"',
             },
+        )
+    else:
+        raise ValidationError(
+            f"Unsupported report format '{format}'. Supported formats are 'html' and 'json'. Note: PDF export is not supported."
         )
 
 @router.get(

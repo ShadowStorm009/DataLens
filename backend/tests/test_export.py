@@ -396,3 +396,29 @@ def test_export_version_report_endpoint():
     assert "attachment" in rep_res.headers["content-disposition"]
     assert "<!DOCTYPE html>" in rep_res.text
 
+def test_export_unsupported_format_returns_400():
+    """Test that requesting an unsupported format like PDF returns HTTP 400 ValidationError."""
+    csv_content = b"a,b\n1,2\n"
+    upload_res = client.post(
+        "/api/v1/datasets",
+        files={"file": ("unsupported_fmt.csv", io.BytesIO(csv_content), "text/csv")},
+    )
+    dataset_id = upload_res.json()["id"]
+
+    # Run an audit
+    audit_res = client.post(f"/api/v1/datasets/{dataset_id}/audits")
+    assert audit_res.status_code == 201
+    audit_id = audit_res.json()["id"]
+
+    # Try requesting PDF format
+    pdf_res = client.get(f"/api/v1/datasets/{dataset_id}/audits/{audit_id}/report?format=pdf")
+    assert pdf_res.status_code == 400
+    res_data = pdf_res.json()
+    assert res_data["error"] == "ValidationError"
+    assert "Unsupported report format 'pdf'" in res_data["message"]
+    assert "PDF export is not supported" in res_data["message"]
+
+    # Try requesting arbitrary unsupported format
+    xml_res = client.get(f"/api/v1/datasets/{dataset_id}/audits/{audit_id}/report?format=xml")
+    assert xml_res.status_code == 400
+

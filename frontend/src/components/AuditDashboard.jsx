@@ -18,6 +18,7 @@ export default function AuditDashboard({
   onSwitchToProfile,
   onSwitchToPreview,
   onSwitchToCompare,
+  onSwitchToExport,
 }) {
   const [versions, setVersions] = useState([]);
   const [selectedVersionId, setSelectedVersionId] = useState(dataset.current_version_id);
@@ -471,6 +472,29 @@ export default function AuditDashboard({
                 >
                   ⚙️ Machine JSON Report
                 </button>
+
+                {onSwitchToExport && (
+                  <button
+                    className="btn btn-outline"
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      fontSize: '0.8rem',
+                      padding: '0.45rem 0.6rem',
+                      marginTop: '0.5rem',
+                      borderTop: '1px solid #e2e8f0',
+                      color: 'var(--primary)',
+                      fontWeight: 600,
+                      backgroundColor: 'var(--primary-light)',
+                    }}
+                    onClick={() => {
+                      setShowExportMenu(false);
+                      onSwitchToExport();
+                    }}
+                  >
+                    📦 Open Dedicated Export Center &rarr;
+                  </button>
+                )}
               </div>
             )}
           </div>

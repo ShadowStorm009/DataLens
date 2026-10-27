@@ -13,10 +13,10 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 15:10 IST
+- **Last updated:** 2026-10-27 16:55 IST
 - **Branch:** `main`
-- **HEAD commit:** `03ed994` (feat(profiling): improve detailed column profiling and visual EDA with master-detail navigation and audit findings)
-- **Git status:** Clean build, 88 automated pytest tests passing in 2.65s, 0 frontend build errors.
+- **HEAD commit:** `ef9b85c` (docs: sync canonical handoff commit hash)
+- **Git status:** Clean build, 90 automated pytest tests passing in 2.66s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
@@ -44,9 +44,9 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Cleaning preview & guided wizard** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx`, `frontend/src/components/CleaningPanel.jsx` | Guided 6-step cleaning wizard: (1) Rows & Columns with constant column detection and exact duplicate removal; (2) Missing values with median/mode imputation; (3) Inconsistent types review with unparseable values inspection and honest backend constraints; (4) Outlier review with Tukey fences and inspection-only retention; (5) Combined transformation review with live projected row/col counts and non-mutating preview simulation; (6) Apply, re-audit, score delta, and export | None | `backend/tests/test_transformations.py` 12 passed; Vite build clean in 813ms |
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx` | Sequential execution engine applying validated transformations on in-memory copies, creating immutable versions (v2, v3, etc.), recording audit trail, and auto-triggering re-audit on completion with comparison links | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
-| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/components/CompareView.jsx`, `frontend/src/components/DatasetTable.jsx` | Selected-version CSV export (not implicitly latest); safe generated filenames; formula injection protection with safe numeric string preservation; empty version handling; before/after comparison in HTML/JSON reports for child versions; version report endpoint; visible download failure handling | None | `backend/tests/test_export.py` 11 passed |
+| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/App.jsx`, `backend/tests/test_export.py` | Dedicated Export Center with two distinct sections: Section A (Dataset CSV Export with version selector distinguishing original v1 from cleaned/transformed versions with lineage and transformation summary, spreadsheet-safe CSV mode, filename preview, and download feedback) and Section B (Audit Report Export with completed audit run selector, HTML and JSON format selections, format descriptions, explicit unsupported format notification, 400 validation for unsupported formats, and loading feedback); direct navbar access and contextual links from Audit Dashboard | None | `backend/tests/test_export.py` 12 passed (including `test_export_unsupported_format_returns_400`), 90 pytest tests passing, Vite frontend build clean in 859ms |
 | **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/app/core/errors.py`, `frontend/src/components/DatasetTable.jsx`, `backend/tests/test_reliability.py` | In-app deletion confirmation modal; DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; transaction rollback cleans storage files on DB commit failures; uniform error envelopes for Starlette `HTTPException` (404, 405) and `RequestValidationError` (422); duplicate submission prevention guards across UI; friendly network error interception | None | `backend/tests/test_reliability.py` 10 passed |
-| **Automated tests** | VERIFIED | `backend/tests/` | 89 automated tests covering health, persistence, upload, preview, profiling (including histogram and timeline generation), 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports, reliability & rollback, audit summary agreement regression, and full E2E lifecycle | None | 89 passed in 2.67s |
+| **Automated tests** | VERIFIED | `backend/tests/` | 90 automated tests covering health, persistence, upload, preview, profiling (including histogram and timeline generation), 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports (including unsupported format rejection), reliability & rollback, audit summary agreement regression, and full E2E lifecycle | None | 90 passed in 2.66s |
 | **README & deployment** | VERIFIED | `README.md`, `Dockerfile`, `docker-compose.yml`, `docs/DECISIONS.md`, `.env.example` | Architecture diagram & module boundaries, local setup instructions, production build instructions, Docker & Docker Compose setup with persistent volume storage requirements, Linux VPS systemd/nginx configuration, core invariants, and explicit limitations documented. Deployment status truthfully marked unverified for remote cloud hosting | None | Setup, build, local daemon running, and health verification verified locally |
 | **Demo and final submission checklist** | VERIFIED | `sample_datasets/demo_dirty_dataset.csv`, `sample_datasets/README.md`, `backend/tests/test_e2e_workflow.py` | Reproducible 20-row sample CSV with known defects across all 8 audit rules, walkthrough guide, and automated E2E lifecycle test verifying upload->profile->audit->preview->apply(v2,v3,v4)->compare->export | None | `test_full_datalens_e2e_lifecycle` PASSED |
 
@@ -466,6 +466,37 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
     - Clean confirmation banner when a column has zero audit issues.
     - Connected "Inspect Column" action from Audit Dashboard cards to focus directly on the target column in ProfileView.
 - **Tests/results:** All 89 backend pytest tests passed in 2.67s; production Vite build succeeded in 835ms (0 errors).
+
+### Phase 8 — Dedicated Export Center (Prompt 5)
+- **Goal:** Build a dedicated Export Center with two clearly separated sections: (A) Dataset Export and (B) Audit Report Export, strictly supporting actually implemented formats, distinguishing versions with full lineage, preventing CSV injection, validating formats, and providing clean download error feedback.
+- **Key Enhancements:**
+  - **Export Center Layout (`frontend/src/components/ExportCenter.jsx`):**
+    - Accessible directly via the primary header navigation ("Export Center" tab) as well as contextually from the Audit Dashboard export dropdown.
+    - Top dataset selector displaying original filename, creation date, and total version count.
+    - Two prominent, clearly separated sections: Section A (Dataset CSV Export) and Section B (Audit Report Export).
+  - **Section A: Dataset Export:**
+    - Version selector retrieving all immutable versions via `getVersionHistory`.
+    - Explicit badges distinguishing Original Upload (v1) from Cleaned / Transformed versions (v2, v3, etc.).
+    - For child versions, displays lineage ("Derived from parent baseline"), human-readable transformation name (e.g., "Remove Duplicate Rows", "Impute Missing with Median"), affected rows, and affected cells.
+    - Version dimensions breakdown: rows, columns, and version-specific audit quality score.
+    - Optional Spreadsheet-Safe mode checkbox: sanitizes formula prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) with single quote escaping to protect spreadsheet users (Excel, Google Sheets, LibreOffice) from malicious CSV formula injection attacks while preserving safe numeric strings.
+    - Real-time filename preview and one-click download via `getExportCsvUrl` + `downloadFileFromUrl`.
+  - **Section B: Audit Report Export:**
+    - Audit run selector displaying run numbers, timestamps, quality scores out of 100, audited dataset versions, and finding counts.
+    - Selected audit run KPI summary: overall score badge, methodology version, total findings, and severity breakdown (High, Medium/Low).
+    - Format selector offering strictly implemented formats:
+      - **Interactive HTML (`.html`)**: Self-contained visual report with SVG score gauge, penalty breakdown table, findings with structured evidence, and before/after version comparisons.
+      - **Structured JSON (`.json`)**: Machine-readable JSON schema for CI/CD automated quality gates.
+    - Explicit unsupported format disclaimer informing users that PDF is not supported on the backend and advising how to print-to-PDF from the standalone HTML export.
+    - Empty state with "⚡ Run Quality Audit Now" action if no completed audits exist yet.
+  - **Download Behavior & Error Handling:**
+    - Clear loading spinners and disabled state during downloads to prevent duplicate submissions.
+    - In-app error alert banners catching network failures or HTTP errors without leaking sensitive stack traces.
+    - Success notification banners confirming file download initiation.
+  - **Backend Validation (`backend/app/api/routes/exports.py`):**
+    - Enforced report format validation: rejects unsupported formats like `pdf` or `xml` with HTTP 400 `ValidationError` and an informative message.
+    - Added automated test `test_export_unsupported_format_returns_400` in `backend/tests/test_export.py`.
+- **Tests/results:** All 90 backend pytest tests passed in 2.66s; production Vite build succeeded in 859ms (0 errors).
 
 
 
