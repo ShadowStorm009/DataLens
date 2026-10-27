@@ -18,6 +18,7 @@ export default function App() {
   const [activeView, setActiveView] = useState('landing');
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [previewingDataset, setPreviewingDataset] = useState(null);
+  const [selectedProfileColumn, setSelectedProfileColumn] = useState(null);
 
   const fetchHealth = async () => {
     setHealthLoading(true);
@@ -225,7 +226,10 @@ export default function App() {
           <AuditDashboard
             dataset={selectedDataset}
             onBack={handleNavigateAllDatasets}
-            onSwitchToProfile={() => setActiveView('profile')}
+            onSwitchToProfile={(colName) => {
+              setSelectedProfileColumn(colName || null);
+              setActiveView('profile');
+            }}
             onSwitchToPreview={() => setPreviewingDataset(selectedDataset)}
             onSwitchToCompare={() => setActiveView('compare')}
           />
@@ -235,7 +239,10 @@ export default function App() {
         {activeView === 'profile' && selectedDataset && (
           <ProfileView
             dataset={selectedDataset}
+            initialColumnName={selectedProfileColumn}
             onBack={handleNavigateAllDatasets}
+            onBackToAudit={() => setActiveView('audit')}
+            onNavigateToCompare={() => setActiveView('compare')}
           />
         )}
 

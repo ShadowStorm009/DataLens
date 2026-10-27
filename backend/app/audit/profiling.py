@@ -165,10 +165,30 @@ class ProfilingEngine:
                 base_profile["inferred_type"] = "numeric"
                 q25, q50, q75 = clean_num.quantile([0.25, 0.50, 0.75]).tolist()
                 std_val = float(clean_num.std()) if len(clean_num) > 1 else 0.0
+                min_val = float(clean_num.min())
+                max_val = float(clean_num.max())
+
+                # Generate data-derived histogram bins
+                histogram_bins = []
+                if min_val != max_val and len(clean_num) >= 2:
+                    bin_count = min(10, distinct_count if distinct_count > 1 else 5)
+                    counts, bin_edges = np.histogram(clean_num, bins=bin_count)
+                    for i in range(len(counts)):
+                        histogram_bins.append({
+                            "bin_start": round(float(bin_edges[i]), 2),
+                            "bin_end": round(float(bin_edges[i + 1]), 2),
+                            "count": int(counts[i]),
+                        })
+                elif len(clean_num) > 0:
+                    histogram_bins.append({
+                        "bin_start": round(min_val, 2),
+                        "bin_end": round(max_val, 2),
+                        "count": len(clean_num),
+                    })
 
                 base_profile["numeric_stats"] = {
-                    "min": float(clean_num.min()),
-                    "max": float(clean_num.max()),
+                    "min": min_val,
+                    "max": max_val,
                     "mean": float(clean_num.mean()),
                     "median": float(clean_num.median()),
                     "std": std_val,
@@ -177,6 +197,7 @@ class ProfilingEngine:
                     "q75": float(q75),
                     "missing_count": null_count,
                     "distinct_count": distinct_count,
+                    "histogram": histogram_bins,
                 }
                 return base_profile
 
@@ -192,12 +213,28 @@ class ProfilingEngine:
                 if date_ratio >= 0.80:
                     base_profile["inferred_type"] = "datetime"
                     clean_dates = date_series.dropna()
+                    timeline = []
+                    if len(clean_dates) > 0:
+                        span_days = (clean_dates.max() - clean_dates.min()).days
+                        if span_days > 730:
+                            grouped = clean_dates.dt.to_period("Y").value_counts().sort_index()
+                        elif span_days > 60:
+                            grouped = clean_dates.dt.to_period("M").value_counts().sort_index()
+                        else:
+                            grouped = clean_dates.dt.to_period("D").value_counts().sort_index()
+                        for period, count in grouped.head(12).items():
+                            timeline.append({
+                                "period": str(period),
+                                "count": int(count),
+                            })
+
                     base_profile["datetime_stats"] = {
                         "min_date": clean_dates.min().isoformat() if not clean_dates.empty else None,
                         "max_date": clean_dates.max().isoformat() if not clean_dates.empty else None,
                         "invalid_date_count": valid_count - valid_date_count,
                         "missing_count": null_count,
                         "distinct_count": distinct_count,
+                        "timeline": timeline,
                     }
                     return base_profile
             except Exception:
@@ -210,7 +247,7 @@ class ProfilingEngine:
         else:
             base_profile["inferred_type"] = "text"
 
-        top_vals = self._get_top_values(valid_values, valid_count)
+        top_vals = self._get_top_values(valid_values, valid_count, limit=10)
         base_profile["categorical_stats"] = {
             "distinct_count": distinct_count,
             "missing_count": null_count,
@@ -220,7 +257,7 @@ class ProfilingEngine:
 
         return base_profile
 
-    def _get_top_values(self, valid_values: pd.Series, valid_count: int, limit: int = 5) -> List[Dict[str, Any]]:
+    def _get_top_values(self, valid_values: pd.Series, valid_count: int, limit: int = 10) -> List[Dict[str, Any]]:
         """Returns bounded top-N most frequent values with counts and proportions."""
         if valid_count == 0:
             return []

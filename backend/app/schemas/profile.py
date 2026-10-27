@@ -1,6 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
+class HistogramBin(BaseModel):
+    bin_start: float
+    bin_end: float
+    count: int
+
+class DateTimelinePoint(BaseModel):
+    period: str
+    count: int
+
 class NumericStats(BaseModel):
     min: Optional[float] = None
     max: Optional[float] = None
@@ -12,6 +21,7 @@ class NumericStats(BaseModel):
     q75: Optional[float] = None
     missing_count: int
     distinct_count: int
+    histogram: Optional[List[HistogramBin]] = None
 
 class CategoricalTopValue(BaseModel):
     value: str
@@ -30,6 +40,7 @@ class DatetimeStats(BaseModel):
     invalid_date_count: int
     missing_count: int
     distinct_count: int
+    timeline: Optional[List[DateTimelinePoint]] = None
 
 class ColumnProfile(BaseModel):
     name: str

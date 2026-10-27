@@ -125,3 +125,34 @@ def test_profile_api_endpoint_and_caching(client: TestClient, db_session, isolat
     assert res2.status_code == 200
     data2 = res2.json()
     assert data2 == data1
+
+def test_profiling_histogram_and_timeline_generation():
+    """Verify that profiling generates valid histogram bins and datetime timeline data."""
+    df = pd.DataFrame({
+        "score": [50.0, 60.0, 70.0, 80.0, 90.0, 100.0],
+        "created_at": ["2026-01-01", "2026-01-05", "2026-01-10", "2026-02-01", "2026-02-15", "2026-03-01"],
+    })
+    profile = profiling_engine.profile_dataframe(df)
+    col_map = {c["name"]: c for c in profile["columns"]}
+
+    # Numeric column histogram
+    score_stats = col_map["score"]["numeric_stats"]
+    assert score_stats is not None
+    assert "histogram" in score_stats
+    hist = score_stats["histogram"]
+    assert isinstance(hist, list)
+    assert len(hist) > 0
+    total_binned = sum(b["count"] for b in hist)
+    assert total_binned == 6
+    assert hist[0]["bin_start"] == 50.0
+
+    # Datetime column timeline
+    date_stats = col_map["created_at"]["datetime_stats"]
+    assert date_stats is not None
+    assert "timeline" in date_stats
+    tl = date_stats["timeline"]
+    assert isinstance(tl, list)
+    assert len(tl) > 0
+    total_dates = sum(t["count"] for t in tl)
+    assert total_dates == 6
+

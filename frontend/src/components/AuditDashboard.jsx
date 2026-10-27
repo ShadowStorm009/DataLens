@@ -282,7 +282,7 @@ export default function AuditDashboard({
   // Inspect column by switching to Profile Explorer or filtering table
   const handleInspectColumn = (colName) => {
     if (onSwitchToProfile) {
-      onSwitchToProfile();
+      onSwitchToProfile(colName);
     } else {
       setColumnFilter(colName);
       setActiveTab('columns');
