@@ -956,8 +956,8 @@ export default function AuditDashboard({
                       style={{
                         padding: '0.35rem 0.75rem',
                         fontSize: '0.825rem',
-                        borderColor: categoryFilter === 'heuristics' ? undefined : 'var(--primary-border)',
-                        color: categoryFilter === 'heuristics' ? undefined : 'var(--primary)',
+                        borderColor: categoryFilter === 'heuristics' ? undefined : '#bfdbfe',
+                        color: categoryFilter === 'heuristics' ? undefined : '#1d4ed8',
                       }}
                       onClick={() => setCategoryFilter('heuristics')}
                     >
@@ -1201,9 +1201,9 @@ export default function AuditDashboard({
                                     className="badge"
                                     style={{
                                       fontSize: '0.72rem',
-                                      background: 'var(--primary-light)',
-                                      color: 'var(--primary)',
-                                      border: '1px solid var(--primary-border)',
+                                      background: '#eff6ff',
+                                      color: '#1d4ed8',
+                                      border: '1px solid #bfdbfe',
                                       fontWeight: 600,
                                     }}
                                   >

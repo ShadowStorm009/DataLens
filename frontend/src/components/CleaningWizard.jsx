@@ -867,7 +867,7 @@ export default function CleaningWizard({
       </div>
 
       {/* Educational Banner */}
-      <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+      <div style={{ background: 'var(--primary-light)', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-md)', padding: '1rem', marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-main)' }}>
         <strong>Important Data Quality Principle:</strong> Statistical outliers (values beyond Tukey's fences: <code>Q1 - 1.5&times;IQR</code> or <code>Q3 + 1.5&times;IQR</code>) are candidates for inspection, NOT automatically defects.
         In DataLens, outlier handling remains <strong>inspection-only</strong> by design to prevent data distortion or accidental loss of genuine extreme measurements.
       </div>
@@ -1431,7 +1431,7 @@ export default function CleaningWizard({
           )}
 
           {isApplying && (
-            <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', borderRadius: 'var(--radius-sm)', padding: '1rem', marginBottom: '1rem' }}>
+            <div style={{ background: 'var(--primary-light)', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-sm)', padding: '1rem', marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--primary)', marginBottom: '0.35rem' }}>
                 {applyProgress.message}
               </div>

@@ -404,7 +404,7 @@ export default function ExportCenter({
             flexDirection: 'column',
             justifyContent: 'space-between',
             boxShadow: 'var(--shadow-sm)',
-            borderTop: '4px solid var(--primary)',
+            borderTop: '4px solid #2563eb',
           }}
         >
           <div>
@@ -657,7 +657,7 @@ export default function ExportCenter({
                 padding: '0.85rem 1rem',
                 marginBottom: '1.5rem',
                 background: spreadsheetSafe ? 'var(--primary-light)' : '#ffffff',
-                borderColor: spreadsheetSafe ? 'var(--primary-border)' : 'var(--border)',
+                borderColor: spreadsheetSafe ? '#bfdbfe' : 'var(--border)',
                 transition: 'all 0.15s ease-in-out',
               }}
             >
