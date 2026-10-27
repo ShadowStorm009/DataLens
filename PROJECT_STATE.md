@@ -13,10 +13,10 @@
 
 ## 2. Current Repository Reality
 
-- **Last updated:** 2026-10-27 17:15 IST
+- **Last updated:** 2026-10-27 19:00 IST
 - **Branch:** `main`
-- **HEAD commit:** `359325f` (docs: sync canonical handoff commit hash for export center)
-- **Git status:** Clean build, 91 automated pytest tests passing in 3.08s, 0 frontend build errors.
+- **HEAD commit:** `26e0cb3`
+- **Git status:** Clean build, 96 automated pytest tests passing in 2.97s, 0 frontend build errors.
 - **Frontend entry point:** `frontend/src/main.jsx` (Vite + React, production build verified)
 - **Backend entry point:** `backend/app/main.py` (FastAPI app with health, upload, preview, profile, audits, transformations, comparison, and export endpoints)
 - **Database configuration:** SQLite connection URL configured via `DATABASE_URL` (default: `sqlite:///./storage/datalens.db`) with `PRAGMA foreign_keys = ON` enforced.
@@ -25,7 +25,7 @@
 - **Backend run command:** `.venv/bin/uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload`
 - **Test commands:** `.venv/bin/pytest -v` (backend) and `cd frontend && npm run build` (frontend)
 - **Environment variable names:** `DATALENS_ENV`, `DATALENS_HOST`, `DATALENS_PORT`, `DATABASE_URL`, `STORAGE_DIR`, `MAX_UPLOAD_SIZE_BYTES`, `CORS_ORIGINS`, `VITE_API_BASE_URL`
-- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint, production Vite frontend build, and all 88 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
+- **Deployment URL/status:** External cloud hosting deployment is NOT verified (no remote cloud credentials/hosting access provided). Local persistence, server daemon running, health check endpoint, production Vite frontend build, and all 96 backend tests are 100% verified. Multi-stage `Dockerfile` and `docker-compose.yml` with persistent volume mounting for `./storage` are provided.
 - **Important architecture notes:** Arch Linux host requires Python installations in `.venv/`. Core audit and cleaning logic remains deterministic without external LLM dependencies.
 
 ## 3. Feature Status Matrix
@@ -34,7 +34,7 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 
 | Feature | Status | Files/modules | What works | What remains | Test evidence |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Landing page & dataset views** | VERIFIED | `frontend/src/components/LandingPage.jsx`, `frontend/src/components/AllDatasetsPage.jsx`, `frontend/src/App.jsx` | Professional SaaS hero landing page with value prop, prominent CSV upload area with validation and upload-success banner, recent datasets (max 5) with real quality scores and timestamps; separate All Datasets page with live name/file search, 8-way metadata sorting, pagination (10/25/50), real audit score integration, and full suite of operations (audit, profile, preview, compare, export, cascade delete) | None | Vite build clean in 823ms; 88 backend pytest tests passing in 2.63s |
+| **Landing page & dataset views** | VERIFIED | `frontend/src/components/LandingPage.jsx`, `frontend/src/components/AllDatasetsPage.jsx`, `frontend/src/App.jsx` | Professional SaaS hero landing page with value prop, prominent CSV upload area with validation and upload-success banner, recent datasets (max 5) with real quality scores and timestamps; separate All Datasets page with live name/file search, 8-way metadata sorting, pagination (10/25/50), real audit score integration, and full suite of operations (audit, profile, preview, compare, export, cascade delete) | None | Vite build clean in 823ms; 96 backend pytest tests passing in 2.97s |
 | **Repository foundation & health check** | VERIFIED | `backend/app/main.py`, `backend/app/api/routes/health.py`, `frontend/src/App.jsx`, `frontend/vite.config.js` | FastAPI app starts, `/health` and `/api/v1/health` respond with 200 OK, CORS enabled for frontend, custom error handling registered, Vite builds cleanly | None | `backend/tests/test_health.py` 3 passed in 0.08s; `npm run build` passed in 1.64s; `curl` verified 200 OK & CORS preflight |
 | **SQLite persistence & models** | VERIFIED | `backend/app/db/`, `backend/app/models/`, `backend/app/services/` | SQLite engine with foreign key enforcement; ORM models (`Dataset`, `DatasetVersion`, `AuditRun`, `Finding`, `Transformation`); `StorageService` with SHA256 & path safety; `DatasetService` with CRUD, lineage, and cascade deletion | None | `backend/tests/test_persistence.py` 8 passed (creation, lineage, audit link, transformations, 404s, cascade delete, foreign keys, process restart survival) |
 | **CSV upload & validation** | VERIFIED | `backend/app/services/csv_validator.py`, `backend/app/api/routes/datasets.py`, `frontend/src/components/UploadSection.jsx` | Server-side size check (10MB limit), encoding detection, empty check, malformed CSV rejection, duplicate header sanitization, leading zeros preservation, drag-and-drop & file picker UI | None | `backend/tests/test_upload_and_preview.py` 10 passed (valid CSV, empty, malformed, oversized 413, duplicate headers, leading zeros, orphan prevention) |
@@ -44,9 +44,10 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
 | **Cleaning preview & guided wizard** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx`, `frontend/src/components/CleaningPanel.jsx` | Guided 6-step cleaning wizard: (1) Rows & Columns with constant column detection and exact duplicate removal; (2) Missing values with median/mode imputation; (3) Inconsistent types review with unparseable values inspection and honest backend constraints; (4) Outlier review with Tukey fences and inspection-only retention; (5) Combined transformation review with live projected row/col counts and non-mutating preview simulation; (6) Apply, re-audit, score delta, and export | None | `backend/tests/test_transformations.py` 12 passed; Vite build clean in 813ms |
 | **Apply transformations & create versions** | VERIFIED | `backend/app/services/cleaner.py`, `backend/app/api/routes/transformations.py`, `frontend/src/components/CleaningWizard.jsx` | Sequential execution engine applying validated transformations on in-memory copies, creating immutable versions (v2, v3, etc.), recording audit trail, and auto-triggering re-audit on completion with comparison links | None | `backend/tests/test_transformations.py` lifecycle test passed; preview/apply parity confirmed |
 | **Re-audit & comparison** | VERIFIED | `backend/app/services/comparison.py`, `backend/app/api/routes/comparison.py`, `frontend/src/components/CompareView.jsx` | Side-by-side version comparison; score delta (+/-) with deduction reduction breakdown; metric deltas (missing cells & %, duplicates & %, row/col counts, severity counts); relevant column statistics comparison; findings transition diff (resolved/unresolved/new); schema column additions/drops; scoped chronological transformation lineage; audit configuration checks; single-version and self-comparison empty states; re-audit on demand | None | `backend/tests/test_comparison.py` 9 passed (service comparison, same version, dropped column, API endpoint, version history, 404s, version ancestry, audit version association, percentage & column stat calculations) |
-| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/App.jsx`, `backend/tests/test_export.py` | Dedicated Export Center with two distinct sections: Section A (Dataset CSV Export with version selector distinguishing original v1 from cleaned/transformed versions with lineage and transformation summary, spreadsheet-safe CSV mode, filename preview, and download feedback) and Section B (Audit Report Export with completed audit run selector, HTML and JSON format selections, format descriptions, explicit unsupported format notification, 400 validation for unsupported formats, and loading feedback); direct navbar access and contextual links from Audit Dashboard | None | `backend/tests/test_export.py` 12 passed (including `test_export_unsupported_format_returns_400`), 90 pytest tests passing, Vite frontend build clean in 859ms |
+| **CSV and report export** | VERIFIED | `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `frontend/src/App.jsx`, `backend/tests/test_export.py` | Dedicated Export Center with two distinct sections: Section A (Dataset CSV Export with version selector distinguishing original v1 from cleaned/transformed versions with lineage and transformation summary, spreadsheet-safe CSV mode, filename preview, and download feedback) and Section B (Audit Report Export with completed audit run selector, HTML and JSON format selections, format descriptions, explicit unsupported format notification, 400 validation for unsupported formats, and loading feedback); direct navbar access and contextual links from Audit Dashboard | None | `backend/tests/test_export.py` 12 passed (including `test_export_unsupported_format_returns_400`), 96 pytest tests passing, Vite frontend build clean in 859ms |
+| **Google Colab handoff & starter notebook** | VERIFIED | `backend/app/services/colab_notebook.py`, `backend/app/services/export.py`, `backend/app/api/routes/exports.py`, `frontend/src/components/ExportCenter.jsx`, `frontend/src/components/AuditDashboard.jsx`, `backend/tests/test_colab_export.py` | Dedicated Section C in Export Center: (1) Download matching cleaned CSV; (2) Download prepared schema-compliant Jupyter notebook (`.ipynb`, nbformat v4.5) with Colab file upload cell, Pandas loader, sanity stats, and structured placeholder cells for visual EDA, feature engineering, train/test splitting, and ML modeling; (3) Open official Google Colab research portal in new tab (`https://colab.research.google.com/`); strict version parity with matching expected filename (`{dataset}_v{num}.csv`); zero embedded raw data or server paths; comprehensive instructions & privacy guarantees | None | `backend/tests/test_colab_export.py` 5 passed (schema compliance, version parity, version endpoint, current version endpoint, 404 handling); Vite build clean in 924ms |
 | **Dataset deletion & reliability** | VERIFIED | `backend/app/api/routes/datasets.py`, `backend/app/services/dataset_service.py`, `backend/app/core/errors.py`, `frontend/src/components/DatasetTable.jsx`, `backend/tests/test_reliability.py` | In-app deletion confirmation modal; DELETE endpoint cascades to DB records, physical CSV files, and cached `.profile.json` files; transaction rollback cleans storage files on DB commit failures; uniform error envelopes for Starlette `HTTPException` (404, 405) and `RequestValidationError` (422); duplicate submission prevention guards across UI; friendly network error interception | None | `backend/tests/test_reliability.py` 10 passed |
-| **Automated tests** | VERIFIED | `backend/tests/` | 91 automated tests covering health, persistence, upload, preview, profiling (including histogram and timeline generation), 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports (including unsupported format rejection), reliability & rollback, audit summary agreement regression, and full E2E & QA lifecycles | None | 91 passed in 3.08s |
+| **Automated tests** | VERIFIED | `backend/tests/` | 96 automated tests covering health, persistence, upload, preview, profiling (including histogram and timeline generation), 8 audit rules, quality scoring, transformations, version ancestry, audit associations, comparisons, exports (including unsupported format rejection), Colab notebook generation & endpoints, reliability & rollback, audit summary agreement regression, and full E2E & QA lifecycles | None | 96 passed in 2.97s |
 | **README & deployment** | VERIFIED | `README.md`, `Dockerfile`, `docker-compose.yml`, `docs/DECISIONS.md`, `.env.example` | Architecture diagram & module boundaries, local setup instructions, production build instructions, Docker & Docker Compose setup with persistent volume storage requirements, Linux VPS systemd/nginx configuration, core invariants, and explicit limitations documented. Deployment status truthfully marked unverified for remote cloud hosting | None | Setup, build, local daemon running, and health verification verified locally |
 | **Demo and final submission checklist** | VERIFIED | `sample_datasets/demo_dirty_dataset.csv`, `sample_datasets/README.md`, `backend/tests/test_e2e_workflow.py` | Reproducible 20-row sample CSV with known defects across all 8 audit rules, walkthrough guide, and automated E2E lifecycle test verifying upload->profile->audit->preview->apply(v2,v3,v4)->compare->export | None | `test_full_datalens_e2e_lifecycle` PASSED |
 
@@ -74,6 +75,9 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
   - `GET /api/v1/datasets/{id}/export`: Current version CSV export shortcut.
   - `GET /api/v1/datasets/{id}/audits/{audit_id}/report`: Download audit report as standalone responsive HTML or structured JSON.
   - `GET /api/v1/datasets/{id}/report`: Latest audit report download shortcut.
+  - `GET /api/v1/datasets/{id}/versions/{v_id}/colab-notebook`: Download schema-compliant Jupyter starter notebook (`.ipynb`, nbformat v4.5) configured for Google Colab and paired with the specified version.
+  - `GET /api/v1/datasets/{id}/colab-notebook`: Current active version Google Colab starter notebook download shortcut.
+
 
 - **Deterministic Audit Engine (`AuditEngine`):**
   - Modular rule interface `AuditRule` with graceful column-level and rule-level exception isolation.
@@ -516,6 +520,40 @@ Use only these statuses: `VERIFIED`, `IMPLEMENTED_UNVERIFIED`, `PARTIAL`, `NOT_S
   - 91 backend pytest tests passing in 3.03s.
   - Production Vite frontend build passing in 877ms with 0 errors.
   - Backend running on `http://127.0.0.1:8000`, frontend running on `http://127.0.0.1:5173`.
+
+### Phase 10 — Google Colab Handoff & Starter Notebook (Prompt 7)
+- **Goal:** Implement a secure, deterministic Google Colab handoff enabling users to export cleaned dataset versions and continue feature engineering, train/test splitting, and model development in Colab without implementing ML execution inside DataLens.
+- **Components & Endpoints Implemented:**
+  1. **Notebook Generator (`backend/app/services/colab_notebook.py`):**
+     - Schema-compliant Jupyter Notebook JSON (`.ipynb`, nbformat 4.5, Python 3 kernel).
+     - Deterministic 15-cell structure: markdown title with dataset metadata, version type, and lineage; `google.colab.files.upload()` cell; robust Pandas CSV loader with fallback; shape and `df.head()`; `df.info()`; missing values breakdown; descriptive statistics `df.describe(include='all')`; structured markdown + code placeholder sections for Exploratory Data Analysis (`matplotlib`/`seaborn`), Feature Engineering (`StandardScaler`, `OneHotEncoder`, `ColumnTransformer`), Train/Test Split (`train_test_split`), and Baseline Model Training/Evaluation (`RandomForestClassifier`, `Pipeline`, `classification_report`).
+     - Strictly preserves data privacy: **zero embedded dataset rows**, zero server paths, zero secrets/tokens.
+     - Enforces notebook invariants: all code cells initialized with `execution_count: null` and `outputs: []`.
+  2. **Export Service Integration (`backend/app/services/export.py`):**
+     - Added `export_colab_notebook(db, dataset_id, version_id)` returning `(notebook_json_str, notebook_filename, expected_csv_filename)`.
+  3. **Backend API Endpoints (`backend/app/api/routes/exports.py`):**
+     - `GET /api/v1/datasets/{dataset_id}/versions/{version_id}/colab-notebook`: Returns `application/x-ipynb+json` attachment with filename `{dataset_name}_v{version_number}_colab_starter.ipynb`.
+     - `GET /api/v1/datasets/{dataset_id}/colab-notebook`: Shortcut for active version.
+  4. **Frontend API Client (`frontend/src/api/client.js`):**
+     - Exported `getColabNotebookUrl(datasetId, versionId = null)`.
+  5. **Export Center Section C (`frontend/src/components/ExportCenter.jsx`):**
+     - Prominent "Section C: Continue in Google Colab (ML & Modeling Handoff)" with amber branding and active version context pill.
+     - **Action 1: Download Cleaned CSV** (reuses standard CSV export endpoint, matching the notebook's expected filename).
+     - **Action 2: Download Starter Notebook** (downloads version-tailored `.ipynb` file with loading/error feedback and duplicate click prevention).
+     - **Action 3: Open Google Colab ↗** (opens official `https://colab.research.google.com/` in new tab with `noopener,noreferrer`).
+     - Step-by-step walkthrough explaining file download, Colab upload, and execution.
+     - Security & Privacy callout explicitly guaranteeing no direct network transmission of user data to external Google servers.
+  6. **Audit Dashboard Integration (`frontend/src/components/AuditDashboard.jsx`):**
+     - Added 1-click starter notebook download directly in the header Export dropdown menu.
+- **Verification & Test Suite:**
+  - Added `backend/tests/test_colab_export.py` covering:
+    - Schema compliance (`nbformat == 4`, `nbformat_minor == 5`, cell types, `execution_count == null`, `outputs == []`).
+    - Presence of required cells (`google.colab.files.upload()`, `pd.read_csv`, EDA, Feature Engineering, Train/Test Split, Model Training).
+    - Data privacy (no dataset values, no server paths).
+    - Version parity between v1 (Original Upload) and v2 (Cleaned via transformation).
+    - HTTP endpoint verification for version route, active version route, and 404 handling.
+  - **All 96 backend tests passing** in 2.97s.
+  - **Vite production build passing** cleanly with 0 errors in 924ms.
 
 
 

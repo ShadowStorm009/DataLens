@@ -7,6 +7,7 @@ import {
   listVersions,
   getExportCsvUrl,
   getExportReportUrl,
+  getColabNotebookUrl,
   downloadFileFromUrl,
 } from '../api/client';
 import FindingDetailDrawer from './FindingDetailDrawer';
@@ -466,11 +467,23 @@ export default function AuditDashboard({
                 </button>
                 <button
                   className="btn btn-outline"
-                  style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
+                  style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem', marginBottom: '0.4rem' }}
                   onClick={() => handleDownload(getExportReportUrl(dataset.id, audit?.id, 'json', activeVerId))}
                   disabled={!audit || exporting}
                 >
                   ⚙️ Machine JSON Report
+                </button>
+
+                <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b', marginBottom: '0.4rem', textTransform: 'uppercase', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
+                  Google Colab Handoff
+                </div>
+                <button
+                  className="btn btn-outline"
+                  style={{ width: '100%', textAlign: 'left', fontSize: '0.8rem', padding: '0.4rem 0.6rem', color: '#b45309', borderColor: '#fde68a', background: '#fffdf5' }}
+                  onClick={() => handleDownload(getColabNotebookUrl(dataset.id, activeVerId))}
+                  disabled={exporting}
+                >
+                  📓 Starter Notebook (.ipynb)
                 </button>
 
                 {onSwitchToExport && (

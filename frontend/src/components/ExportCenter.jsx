@@ -7,6 +7,7 @@ import {
   runAudit,
   getExportCsvUrl,
   getExportReportUrl,
+  getColabNotebookUrl,
   downloadFileFromUrl,
 } from '../api/client';
 
@@ -32,6 +33,11 @@ export default function ExportCenter({
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [csvError, setCsvError] = useState(null);
   const [csvSuccess, setCsvSuccess] = useState(null);
+
+  // Colab Export configuration
+  const [isDownloadingNotebook, setIsDownloadingNotebook] = useState(false);
+  const [notebookError, setNotebookError] = useState(null);
+  const [notebookSuccess, setNotebookSuccess] = useState(null);
 
   // Audit Report configuration
   const [audits, setAudits] = useState([]);
@@ -80,6 +86,8 @@ export default function ExportCenter({
     setLoadingAudits(true);
     setCsvError(null);
     setCsvSuccess(null);
+    setNotebookError(null);
+    setNotebookSuccess(null);
     setReportError(null);
     setReportSuccess(null);
 
@@ -200,6 +208,39 @@ export default function ExportCenter({
     const verNum = auditVer?.version_number || selectedVersion?.version_number || 1;
     const ext = reportFormat === 'json' ? 'json' : 'html';
     return `${name}_v${verNum}_audit_report.${ext}`;
+  };
+
+  const getColabNotebookFilenamePreview = () => {
+    const name = getCleanDatasetName();
+    const verNum = selectedVersion?.version_number || 1;
+    return `${name}_v${verNum}_colab_starter.ipynb`;
+  };
+
+  // Section C Colab Download & Navigation Handlers
+  const handleDownloadNotebook = async () => {
+    if (!selectedDatasetId || !selectedVersionId) {
+      setNotebookError('Please select a valid dataset and version to generate a notebook.');
+      return;
+    }
+
+    setIsDownloadingNotebook(true);
+    setNotebookError(null);
+    setNotebookSuccess(null);
+
+    try {
+      const url = getColabNotebookUrl(selectedDatasetId, selectedVersionId);
+      const expectedFilename = getColabNotebookFilenamePreview();
+      await downloadFileFromUrl(url, expectedFilename);
+      setNotebookSuccess(`Successfully downloaded Colab starter notebook "${expectedFilename}"`);
+    } catch (err) {
+      setNotebookError(err.message || 'Failed to download Google Colab notebook. Please try again.');
+    } finally {
+      setIsDownloadingNotebook(false);
+    }
+  };
+
+  const handleOpenColab = () => {
+    window.open('https://colab.research.google.com/', '_blank', 'noopener,noreferrer');
   };
 
   // Section A Download Handler
@@ -1121,6 +1162,310 @@ export default function ExportCenter({
         </section>
 
       </div>
+
+      {/* ========================================================================= */}
+      {/* SECTION C: CONTINUE IN GOOGLE COLAB (ML & MODELING HANDOFF) */}
+      {/* ========================================================================= */}
+      <section
+        className="card"
+        style={{
+          marginTop: '2rem',
+          boxShadow: 'var(--shadow-sm)',
+          borderTop: '4px solid #f59e0b',
+          padding: '1.75rem',
+        }}
+      >
+        {/* Section Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.85rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <span style={{ color: '#d97706', display: 'inline-flex' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </span>
+            <div>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
+                Section C: Continue in Google Colab
+              </h2>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Feature Engineering, Train/Test Splitting, and Machine Learning Modeling Handoff
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span className="badge badge-info" style={{ fontWeight: 600 }}>Jupyter Notebook (.ipynb)</span>
+            <span className="badge badge-warning" style={{ fontWeight: 600, color: '#b45309' }}>Google Colab Ready</span>
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+          Seamlessly continue your data science workflow. Export your validated dataset along with a tailored, pre-configured Jupyter notebook to train models, experiment with feature engineering, and evaluate performance in Google Colab.
+        </p>
+
+        {/* Active Dataset & Version Context Bar */}
+        {selectedVersion && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              padding: '0.85rem 1rem',
+              background: 'var(--bg-main)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '1.5rem',
+              fontSize: '0.85rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Active Export Version:</span>
+              <strong>Version {selectedVersion.version_number}</strong>
+              {isCleanedVersion(selectedVersion) ? (
+                <span className="badge badge-success" style={{ fontSize: '0.725rem' }}>Cleaned / Transformed</span>
+              ) : (
+                <span className="badge badge-info" style={{ fontSize: '0.725rem' }}>Original Upload (v1)</span>
+              )}
+              {isCleanedVersion(selectedVersion) && selectedVersion.transformation && (
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  ({selectedVersion.transformation.summary || selectedVersion.transformation.operation_type})
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+              <span>{selectedVersion.row_count.toLocaleString()} rows × {selectedVersion.column_count} columns</span>
+              <span>Expected CSV: <code style={{ color: 'var(--text-main)', fontWeight: 600 }}>{getCsvFilenamePreview()}</code></span>
+            </div>
+          </div>
+        )}
+
+        {/* Error and Success Feedback Alerts */}
+        {notebookError && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              background: 'var(--danger-bg)',
+              border: '1px solid #fecaca',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--danger)',
+              fontSize: '0.85rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>⚠️ {notebookError}</span>
+            <button
+              className="btn btn-outline"
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+              onClick={() => setNotebookError(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {notebookSuccess && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              background: 'var(--success-bg)',
+              border: '1px solid #bbf7d0',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--success)',
+              fontSize: '0.85rem',
+              marginBottom: '1.25rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>✓ {notebookSuccess}</span>
+            <button
+              className="btn btn-outline"
+              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+              onClick={() => setNotebookSuccess(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Three Key Actions Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '1.25rem',
+            marginBottom: '1.75rem',
+          }}
+        >
+          {/* Action 1: Download CSV */}
+          <div
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '1.25rem',
+              background: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>📥</span>
+                <strong style={{ fontSize: '0.95rem' }}>1. Download Cleaned CSV</strong>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginBottom: '0.75rem' }}>
+                Export the exact matching CSV data file for Version {selectedVersion?.version_number || 1}.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem', fontFamily: 'var(--font-mono)' }}>
+                File: {getCsvFilenamePreview()}
+              </div>
+            </div>
+            <button
+              className="btn btn-outline"
+              style={{ width: '100%', fontSize: '0.85rem', padding: '0.6rem' }}
+              onClick={handleDownloadCsv}
+              disabled={isDownloadingCsv || !selectedVersionId}
+            >
+              {isDownloadingCsv ? 'Downloading CSV...' : `Download ${getCsvFilenamePreview()}`}
+            </button>
+          </div>
+
+          {/* Action 2: Download Colab Notebook */}
+          <div
+            style={{
+              border: '1px solid #fde68a',
+              borderRadius: 'var(--radius-sm)',
+              padding: '1.25rem',
+              background: '#fffdf5',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>📓</span>
+                <strong style={{ fontSize: '0.95rem', color: '#92400e' }}>2. Download Starter Notebook</strong>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: '1.4', marginBottom: '0.75rem' }}>
+                Pre-configured notebook with Google Colab file upload, Pandas data sanity checks, and ML modeling templates.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: '#92400e', marginBottom: '1rem', fontFamily: 'var(--font-mono)' }}>
+                File: {getColabNotebookFilenamePreview()}
+              </div>
+            </div>
+            <button
+              className="btn btn-primary"
+              style={{
+                width: '100%',
+                fontSize: '0.85rem',
+                padding: '0.6rem',
+                background: '#d97706',
+                borderColor: '#d97706',
+              }}
+              onClick={handleDownloadNotebook}
+              disabled={isDownloadingNotebook || !selectedVersionId}
+            >
+              {isDownloadingNotebook ? (
+                <>
+                  <span className="spinner" style={{ display: 'inline-block', width: '12px', height: '12px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.6s linear infinite', marginRight: '0.4rem' }} />
+                  Generating Notebook...
+                </>
+              ) : (
+                `Download Notebook (.ipynb)`
+              )}
+            </button>
+          </div>
+
+          {/* Action 3: Open Google Colab */}
+          <div
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '1.25rem',
+              background: '#ffffff',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>🚀</span>
+                <strong style={{ fontSize: '0.95rem' }}>3. Open Google Colab</strong>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4', marginBottom: '0.75rem' }}>
+                Opens the official Google Colaboratory web research environment in a new browser tab.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem', fontFamily: 'var(--font-mono)' }}>
+                URL: https://colab.research.google.com/
+              </div>
+            </div>
+            <button
+              className="btn btn-outline"
+              style={{ width: '100%', fontSize: '0.85rem', padding: '0.6rem', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+              onClick={handleOpenColab}
+            >
+              Open Google Colab ↗
+            </button>
+          </div>
+        </div>
+
+        {/* Step-by-Step Instructions Walkthrough */}
+        <div
+          style={{
+            padding: '1.25rem',
+            background: '#f8fafc',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <h4 style={{ margin: '0 0 0.85rem 0', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            📖 How to Run Your Workflow in Google Colab:
+          </h4>
+          <ol style={{ paddingLeft: '1.25rem', margin: 0, fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: '1.6' }}>
+            <li style={{ marginBottom: '0.4rem' }}>
+              <strong>Download files:</strong> Click <strong>Action 1</strong> and <strong>Action 2</strong> above to download <code>{getCsvFilenamePreview()}</code> and <code>{getColabNotebookFilenamePreview()}</code> to your local computer.
+            </li>
+            <li style={{ marginBottom: '0.4rem' }}>
+              <strong>Launch Google Colab:</strong> Click <strong>Action 3 (Open Google Colab ↗)</strong> to open <a href="https://colab.research.google.com/" target="_blank" rel="noopener noreferrer">https://colab.research.google.com/</a> in a new tab.
+            </li>
+            <li style={{ marginBottom: '0.4rem' }}>
+              <strong>Upload notebook:</strong> In Colab's dialog, select the <strong>Upload</strong> tab (or go to <code>File &rarr; Upload notebook</code>) and upload your downloaded <code>{getColabNotebookFilenamePreview()}</code> file.
+            </li>
+            <li style={{ marginBottom: '0.4rem' }}>
+              <strong>Run &amp; Upload CSV:</strong> Run the first code cell in the notebook. When prompted by <code>google.colab.files.upload()</code>, select your downloaded <code>{getCsvFilenamePreview()}</code> file.
+            </li>
+            <li>
+              <strong>Model &amp; Experiment:</strong> Proceed through the pre-formatted sections for descriptive statistics, visual EDA, feature engineering, train/test splitting, and model training.
+            </li>
+          </ol>
+        </div>
+
+        {/* Privacy & Security Guarantee Callout */}
+        <div
+          style={{
+            padding: '0.75rem 1rem',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.775rem',
+            color: '#64748b',
+            lineHeight: '1.45',
+          }}
+        >
+          <strong>🔒 Security &amp; Data Privacy Guarantee:</strong> DataLens runs locally and does not automatically transmit your dataset or notebook files over the network to Google servers. Opening Google Colab does not automatically upload any files; you retain full control by manually uploading your downloaded notebook and CSV directly inside your own Google Colab session.
+        </div>
+      </section>
+
     </div>
   );
 }

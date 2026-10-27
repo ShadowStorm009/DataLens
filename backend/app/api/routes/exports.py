@@ -67,6 +67,52 @@ def export_current_version_csv(
     )
 
 @router.get(
+    "/versions/{version_id}/colab-notebook",
+    summary="Export prepared Google Colab starter notebook (.ipynb)",
+)
+def export_version_colab_notebook(
+    dataset_id: str,
+    version_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Download a prepared Jupyter notebook (.ipynb) tailored for Google Colab
+    paired with the selected dataset version.
+    """
+    notebook_json_str, filename, _ = export_service.export_colab_notebook(
+        db=db,
+        dataset_id=dataset_id,
+        version_id=version_id,
+    )
+
+    return Response(
+        content=notebook_json_str,
+        media_type="application/x-ipynb+json; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+@router.get(
+    "/colab-notebook",
+    summary="Export prepared Google Colab starter notebook (.ipynb) for current version",
+)
+def export_current_version_colab_notebook(
+    dataset_id: str,
+    db: Session = Depends(get_db),
+):
+    """Export the Google Colab starter notebook for the current active version."""
+    dataset = dataset_service.get_dataset(db, dataset_id)
+    if not dataset.current_version_id:
+        raise ResourceNotFoundError(f"Dataset '{dataset_id}' has no current version")
+
+    return export_version_colab_notebook(
+        dataset_id=dataset_id,
+        version_id=dataset.current_version_id,
+        db=db,
+    )
+
+@router.get(
     "/audits/{audit_id}/report",
     summary="Export audit report in HTML or JSON format",
 )

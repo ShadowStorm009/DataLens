@@ -71,6 +71,20 @@ class ExportService:
 
         return csv_text, filename
 
+    def export_colab_notebook(
+        self,
+        db: Session,
+        dataset_id: str,
+        version_id: str,
+    ) -> Tuple[str, str, str]:
+        """
+        Generate a ready-to-run Jupyter notebook (.ipynb) for Google Colab
+        paired with a specific dataset version.
+        Returns: (notebook_json_str, notebook_filename, expected_csv_filename)
+        """
+        from backend.app.services.colab_notebook import colab_notebook_generator
+        return colab_notebook_generator.generate_notebook(db, dataset_id, version_id)
+
     def generate_json_report(
         self,
         db: Session,

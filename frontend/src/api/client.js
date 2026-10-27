@@ -290,6 +290,16 @@ export function getExportReportUrl(datasetId, auditId = null, format = 'html', v
 }
 
 /**
+ * Generate Google Colab Starter Notebook (.ipynb) download URL
+ */
+export function getColabNotebookUrl(datasetId, versionId = null) {
+  if (versionId) {
+    return `${API_BASE_URL}/datasets/${datasetId}/versions/${versionId}/colab-notebook`;
+  }
+  return `${API_BASE_URL}/datasets/${datasetId}/colab-notebook`;
+}
+
+/**
  * Trigger browser file download from a given URL with error catching
  */
 export async function downloadFileFromUrl(url, defaultFilename = 'datalens_download') {

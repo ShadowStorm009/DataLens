@@ -19,6 +19,8 @@ Export Cleaned CSV ◄── Compare Versions ◄── Re-audit ◄── Apply
 6. **Versioned Transformation**: Apply cleaning operations (median imputation, mode imputation, duplicate removal, constant column drop) to create immutable child versions (`v1` ➔ `v2` ➔ `v3`).
 7. **Re-Audit & Compare**: Compare any two versions side-by-side with score deltas (+/-), deduction reductions, metric deltas, findings transitions (`resolved`, `unresolved`, `new`), and schema changes.
 8. **Export**: Download the cleaned CSV version (with optional spreadsheet formula injection defense) and standalone self-contained HTML or JSON audit reports.
+9. **Google Colab Handoff**: Export a tailored Jupyter starter notebook (`.ipynb`, nbformat v4.5) paired with your chosen dataset version, download the matching CSV, and seamlessly launch official Google Colab for feature engineering and ML model training.
+
 
 ---
 
@@ -80,7 +82,7 @@ flowchart TD
 - **Backend**: Python 3.10+ (tested on Python 3.14 / Arch Linux), FastAPI, Uvicorn, Pydantic v2.
 - **Data Engine**: Pandas and NumPy.
 - **Persistence**: SQLite with SQLAlchemy ORM (`PRAGMA foreign_keys = ON;`) for metadata, version tracking, audit records, and transformation logs.
-- **Testing**: pytest and FastAPI TestClient (91 automated tests passing).
+- **Testing**: pytest and FastAPI TestClient (96 automated tests passing).
 
 ---
 
@@ -166,7 +168,7 @@ Production assets will be output to `frontend/dist/`.
 ### 4. Running the Test Suite
 
 ```bash
-# Run all 88 unit, integration, and E2E tests:
+# Run all 96 unit, integration, and E2E tests:
 .venv/bin/pytest backend/tests -v
 ```
 
